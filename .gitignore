@@ -1,0 +1,5 @@
+dist-newstyle
+.vscode/dist-cabal-repl
+.vscode/phoityne.log
+cabal.project.local~
+notes.txt
