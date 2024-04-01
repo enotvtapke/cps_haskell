@@ -66,7 +66,9 @@ library
     import:           depends, warnings
 
     -- Modules exported by the library.
-    exposed-modules:  MyLib
+    exposed-modules:  
+        MyLib, 
+        Parser.Parser
 
     -- Modules included in this library but not exported.
     -- other-modules:
@@ -75,7 +77,10 @@ library
     -- other-extensions:
 
     -- Other library packages from which modules are imported.
-    -- build-depends:
+    build-depends:
+        mtl ^>=2.3.1,
+        text ^>=2.1.1,
+        unordered-containers ^>=0.2.20
 
     -- Directories containing source files.
     hs-source-dirs:   src
