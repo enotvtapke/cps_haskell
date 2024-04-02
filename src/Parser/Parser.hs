@@ -1,4 +1,5 @@
 {-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Parser.Parser
   (
@@ -7,7 +8,7 @@ module Parser.Parser
     a,
     ccc,
     parse,
-    ccc1
+    accc
   )
 where
 
@@ -23,33 +24,49 @@ import qualified Data.HashMap.Strict as Map
 
 -- import Control.Monad.Trans.Cont ()
 
-newtype Cont a = Cont {runCont :: (a -> a) -> [a]}
+newtype Cont a = Cont {runCont :: (a -> a) -> State ([a -> a], [a]) [a]}
 
 -- newtype Cont a = Cont (ContT a [] a)
 
+evalCont :: Cont a -> [a]
+evalCont m = evalState (runCont m id) ([], [])
+
 instance Functor Cont where
   fmap :: (a -> b) -> Cont a -> Cont b
-  fmap f m = Cont $ \k -> k . f <$> runCont m id
+  fmap f m = Cont $ \k -> return $ k . f <$> evalCont m
 
 instance Applicative Cont where
   pure :: a -> Cont a
-  pure x = Cont $ \k -> pure $ k x
+  pure x = Cont $ \k -> return $ pure $ k x
   (<*>) :: Cont (a -> b) -> Cont a -> Cont b
-  (<*>) f v = Cont $ \k -> k <$> (runCont f id <*> runCont v id)
+  (<*>) f v = Cont $ \k -> return $ k <$> (evalCont f <*> evalCont v)
 
 instance Monad Cont where
   (>>=) :: Cont a -> (a -> Cont b) -> Cont b
-  (>>=) m f = Cont $ \k -> k <$> (runCont m id >>= (\x -> runCont (f x) id))
+  (>>=) m f = Cont $ \k -> return $ k <$> (evalCont m >>= (evalCont . f))
   return :: a -> Cont a
   return = pure
 
 instance Alternative Cont where
   empty :: Cont a
-  empty = Cont (const empty)
+  empty = Cont (const $ return empty)
   (<|>) :: Cont a -> Cont a -> Cont a
-  (<|>) x y = Cont $ \k -> k <$> (runCont x id <|> runCont y id)
+  (<|>) x y = Cont $ \k -> return $ k <$> (evalCont x <|> evalCont y)
 
 instance MonadPlus Cont
+
+-- memoCont :: Cont a -> Cont a
+-- memoCont m = Cont $ \k -> do
+--   (ks, rs) <- get
+--   if null ks then 
+--     do
+--       modify $ const (k : ks, rs)
+--       runCont m $ \t -> t
+
+--       return $ evalCont m 
+--   else return $ evalCont m
+  -- if 
+  -- return $ evalCont m
 
 -- newtype St a = St (StateT String [] a) deriving Monad
 
@@ -90,7 +107,7 @@ term :: String -> Parser T.Text T.Text
 term = term1 . T.pack
 
 parse :: Parser s a -> s -> [(a, s)]
-parse p s = runCont (runStateT p s) id
+parse p s = evalCont (runStateT p s)
 
 -- memo :: Int -> Parser s a -> Parser s a
 -- memo key p = StateT $ \s -> ()
@@ -101,7 +118,7 @@ parse p s = runCont (runStateT p s) id
 ccc :: Parser T.Text T.Text
 ccc = (ccc >>= \c -> T.append c <$> term "c") <|> term "c"
 
-ccc1 = (term "c") <|> term "c"
+accc = (term "c" >>= \c -> T.append c <$> term "c") <|> term "a" <|> term "a"
 
 a :: [(T.Text, T.Text)]
 a = parse ccc $ T.pack "ccc"
