@@ -24,26 +24,31 @@ import qualified Data.HashMap.Strict as Map
 
 -- import Control.Monad.Trans.Cont ()
 
-newtype Cont a = Cont {runCont :: (a -> a) -> State ([a -> a], [a]) [a]}
+-- newtype C a = C {runC :: a -> State (C a, [a]) a}
+
+newtype Cont a = Cont {runCont :: (a -> State ([a -> a], [a]) a) -> State ([a -> a], [a]) [a]}
 
 -- newtype Cont a = Cont (ContT a [] a)
 
+-- evalCont :: Cont a -> [a]
+-- evalCont m = evalState (runCont m (\x -> (state $ \s -> (x, s)))) ([], [])
+
 evalCont :: Cont a -> [a]
-evalCont m = evalState (runCont m id) ([], [])
+evalCont m = evalState (runCont m (\x -> state (x,))) ([], [])
 
 instance Functor Cont where
   fmap :: (a -> b) -> Cont a -> Cont b
-  fmap f m = Cont $ \k -> return $ k . f <$> evalCont m
+  fmap f m = Cont $ \k -> traverse (k . f) (evalCont m)
 
 instance Applicative Cont where
   pure :: a -> Cont a
-  pure x = Cont $ \k -> return $ pure $ k x
+  pure x = Cont $ \k -> traverse k (pure x)
   (<*>) :: Cont (a -> b) -> Cont a -> Cont b
-  (<*>) f v = Cont $ \k -> return $ k <$> (evalCont f <*> evalCont v)
+  (<*>) f v = Cont $ \k -> traverse k (evalCont f <*> evalCont v)
 
 instance Monad Cont where
   (>>=) :: Cont a -> (a -> Cont b) -> Cont b
-  (>>=) m f = Cont $ \k -> return $ k <$> (evalCont m >>= (evalCont . f))
+  (>>=) m f = Cont $ \k -> traverse k (evalCont m >>= (evalCont . f))
   return :: a -> Cont a
   return = pure
 
@@ -51,22 +56,24 @@ instance Alternative Cont where
   empty :: Cont a
   empty = Cont (const $ return empty)
   (<|>) :: Cont a -> Cont a -> Cont a
-  (<|>) x y = Cont $ \k -> return $ k <$> (evalCont x <|> evalCont y)
+  (<|>) x y = Cont $ \k -> traverse k (evalCont x <|> evalCont y)
 
 instance MonadPlus Cont
 
--- memoCont :: Cont a -> Cont a
--- memoCont m = Cont $ \k -> do
---   (ks, rs) <- get
---   if null ks then 
---     do
---       modify $ const (k : ks, rs)
---       runCont m $ \t -> t
-
---       return $ evalCont m 
---   else return $ evalCont m
-  -- if 
+memoCont :: Cont a -> Cont a
+memoCont m = Cont $ \k -> do
+  (ks, rs) <- get
   -- return $ evalCont m
+  if null ks then 
+    do
+      -- modify $ const (k : ks, rs)
+      runCont m $ \t -> do
+        (kss, rss) <- get
+        modify $ const (kss, t : rss)
+        return t
+
+      return $ evalCont m 
+  else return $ evalCont m
 
 -- newtype St a = St (StateT String [] a) deriving Monad
 
