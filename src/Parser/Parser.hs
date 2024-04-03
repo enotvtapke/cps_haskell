@@ -1,5 +1,6 @@
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE BangPatterns #-}
 
 module Parser.Parser
   (
@@ -8,7 +9,10 @@ module Parser.Parser
     a,
     ccc,
     parse,
-    accc
+    accc,
+    cc,
+    evalCont,
+    parse1
   )
 where
 
@@ -23,12 +27,17 @@ import GHC.Base (Alternative (empty), join)
 -- import qualified Data.HashMap.Strict as Map
 import Data.Foldable (traverse_)
 import qualified Data.HashMap.Lazy as Map
+import Data.Hashable
 
 -- import Control.Monad.Trans.Cont ()
 
 newtype C a = C {runC :: a -> State ([C a], [a]) a}
 
 newtype Cont a = Cont {runCont :: C a -> State ([C a], [a]) [a]}
+
+instance Show (Cont a) where
+  show :: Cont a -> String
+  show _ = "Cont"
 
 -- newtype Cont a = Cont (ContT a [] a)
 
@@ -80,6 +89,9 @@ memoCont m = Cont $ \k -> do
       modify $ const (k : ks, rs)
       traverse (\r -> runC k r) rs
     -- return $ evalCont m
+
+cc :: Cont String
+cc = memoCont $ cc >> return "a"
 
 -- newtype St a = St (StateT String [] a) deriving Monad
 
@@ -148,17 +160,46 @@ term1 t =
 term :: String -> Parser k T.Text T.Text
 term = term1 . T.pack
 
+
+-- evalParserState :: ParserState k s a -> Cont a
+-- evalParserState m = evalState (runParserState m) Map.empty
+
 parse :: Parser k s a -> s -> [(a, s)]
-parse p s = evalCont (evalState (runParserState (runStateT p s)) Map.empty)
+parse p s = evalCont (evalParserState (runStateT p s))
 
--- memo :: Int -> Parser s a -> Parser s a
--- memo key p = StateT $ \s -> ()
---   where 
---     m :: Map.HashMap s (Cont a)
---     m = empty
+parse1 :: Parser k s a -> s -> Cont (a, s)
+parse1 p s = evalParserState (runStateT p s)
 
-ccc :: Parser k T.Text T.Text
-ccc = (ccc >>= \c -> T.append c <$> term "c") <|> term "c"
+memo :: (Hashable k, Eq k, Hashable s, Eq s) => k -> Parser k s a -> Parser k s a
+memo key p = StateT $ \s -> ParserState $
+  do
+    modify (Map.insertWith (\_ old -> old) key Map.empty)
+    keyToParser <- get
+    let memoizedParser = keyToParser Map.! key
+    case Map.lookup s memoizedParser of
+      Nothing -> do
+        let !memoizedCont = memoCont $ evalParserState $ runStateT p s
+        -- let memoizedCont = memoCont (evalParserState $ evalStateT p s)
+        modify (Map.adjust (Map.insert s memoizedCont) key)
+        return memoizedCont
+      Just memoizedCont -> return memoizedCont
+    
+    -- modify (Map.insertWith (\ _ old -> old) (Map.insert s (memoCont (evalParserState $ runStateT p s))) key)
+    -- return $ (memoized Map.! key) Map.! s
+    -- case memoParser of
+    --   -- Nothing -> modify (Map.insert key Map.empty)
+    --   Nothing -> undefined
+    --   Just memoParserEntry -> do
+    --     case Map.lookup s memoParserEntry of
+    --       Nothing -> do
+    --         let a = memoCont (evalParserState $ runStateT p s)
+    --         modify (Map.adjust (Map.insert s (memoCont (evalParserState $ runStateT p s))) key)
+    --         return a
+    --       Just memoContEntry -> return memoContEntry
+    -- return $ evalParserState (runStateT p s)
+
+ccc :: Parser Int T.Text T.Text
+ccc = memo 2 ((ccc >>= \c -> T.append c <$> term "c") <|> term "a")
 
 accc = (term "c" >>= \c -> T.append c <$> term "c") <|> term "a" <|> term "a"
 
