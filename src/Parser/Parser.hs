@@ -20,8 +20,9 @@ import Data.Monoid qualified as GHC.Types
 import Data.Text qualified as T
 import GHC.Base (Alternative (empty), join)
 -- import Data.HashMap.Internal.Strict (HashMap)
-import qualified Data.HashMap.Strict as Map
+-- import qualified Data.HashMap.Strict as Map
 import Data.Foldable (traverse_)
+import qualified Data.HashMap.Lazy as Map
 
 -- import Control.Monad.Trans.Cont ()
 
@@ -74,7 +75,7 @@ memoCont m = Cont $ \k -> do
         traverse_ (\kk -> runC kk t) kss
         return t
       -- return $ evalCont m 
-  else 
+  else
     do
       modify $ const (k : ks, rs)
       traverse (\r -> runC k r) rs
@@ -103,10 +104,39 @@ memoCont m = Cont $ \k -> do
 
 -- data State1 s a = State1 s (Map.HashMap Int (Map.HashMap s (Cont a)) )
 
-type Parser s = StateT s Cont
+newtype ParserState k s a = ParserState { runParserState :: State (Map.HashMap k (Map.HashMap s (Cont a))) (Cont a) }
+
+evalParserState :: ParserState k s a -> Cont a
+evalParserState m = evalState (runParserState m) Map.empty
+
+instance Functor (ParserState k s) where
+  fmap :: (a -> b) -> ParserState k s a -> ParserState k s b
+  fmap f m = ParserState $ state (f <$> evalParserState m, )
+
+instance Applicative (ParserState k s) where
+  pure :: a -> ParserState k s a
+  pure x = ParserState $ state (pure x, )
+  (<*>) :: ParserState k s (a -> b) -> ParserState k s a -> ParserState k s b
+  (<*>) f m = ParserState $ state (evalParserState f <*> evalParserState m, )
+
+instance Monad (ParserState k s) where
+  (>>=) :: ParserState k s a -> (a -> ParserState k s b) -> ParserState k s b
+  (>>=) m f = ParserState $ state (evalParserState m >>= (evalParserState . f), )
+  return :: a -> ParserState k s a
+  return = pure
+
+instance Alternative (ParserState k s) where
+  empty :: ParserState k s a
+  empty = ParserState $ state (empty, )
+  (<|>) :: ParserState k s a -> ParserState k s a -> ParserState k s a
+  (<|>) x y = ParserState $ state (evalParserState x <|> evalParserState y, )
+
+instance MonadPlus (ParserState k s)
+
+type Parser k s = StateT s (ParserState k s)
 -- newtype MemoParser s a = MemoParser (StateT (State1 s a) Cont)
 
-term1 :: T.Text -> Parser T.Text T.Text
+term1 :: T.Text -> Parser k T.Text T.Text
 term1 t =
   StateT
     ( \s ->
@@ -115,11 +145,11 @@ term1 t =
           Nothing -> empty
     )
 
-term :: String -> Parser T.Text T.Text
+term :: String -> Parser k T.Text T.Text
 term = term1 . T.pack
 
-parse :: Parser s a -> s -> [(a, s)]
-parse p s = evalCont (runStateT p s)
+parse :: Parser k s a -> s -> [(a, s)]
+parse p s = evalCont (evalState (runParserState (runStateT p s)) Map.empty)
 
 -- memo :: Int -> Parser s a -> Parser s a
 -- memo key p = StateT $ \s -> ()
@@ -127,7 +157,7 @@ parse p s = evalCont (runStateT p s)
 --     m :: Map.HashMap s (Cont a)
 --     m = empty
 
-ccc :: Parser T.Text T.Text
+ccc :: Parser k T.Text T.Text
 ccc = (ccc >>= \c -> T.append c <$> term "c") <|> term "c"
 
 accc = (term "c" >>= \c -> T.append c <$> term "c") <|> term "a" <|> term "a"
