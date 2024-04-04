@@ -28,6 +28,7 @@ import GHC.Base (Alternative (empty), join)
 import Data.Foldable (traverse_)
 import qualified Data.HashMap.Lazy as Map
 import Data.Hashable
+import Data.Dynamic
 
 -- import Control.Monad.Trans.Cont ()
 
@@ -116,24 +117,29 @@ cc = memoCont $ cc >> return "a"
 
 -- data State1 s a = State1 s (Map.HashMap Int (Map.HashMap s (Cont a)) )
 
-newtype ParserState k s a = ParserState { runParserState :: State (Map.HashMap k (Map.HashMap s (Cont a))) (Cont a) }
+newtype ParserState k s a = ParserState { runParserState :: State (Map.HashMap k (Map.HashMap s (Cont Dynamic))) (Cont a) }
 
 evalParserState :: ParserState k s a -> Cont a
 evalParserState m = evalState (runParserState m) Map.empty
 
 instance Functor (ParserState k s) where
   fmap :: (a -> b) -> ParserState k s a -> ParserState k s b
-  fmap f m = ParserState $ state (f <$> evalParserState m, )
+  fmap f m = ParserState $ (f <$>) <$> runParserState m
+  -- fmap f m = ParserState $ state (f <$> evalParserState m, )
 
 instance Applicative (ParserState k s) where
   pure :: a -> ParserState k s a
   pure x = ParserState $ state (pure x, )
   (<*>) :: ParserState k s (a -> b) -> ParserState k s a -> ParserState k s b
-  (<*>) f m = ParserState $ state (evalParserState f <*> evalParserState m, )
+  (<*>) f m = ParserState $ ((\x -> (x <*>)) <$> runParserState f) <*> runParserState m
 
 instance Monad (ParserState k s) where
   (>>=) :: ParserState k s a -> (a -> ParserState k s b) -> ParserState k s b
-  (>>=) m f = ParserState $ state (evalParserState m >>= (evalParserState . f), )
+  (>>=) m f = ParserState $ runParserState m >>= (\x -> let z = evalCont $ x >>= (\y -> return $ f y) in
+    case z of
+      [z1] -> runParserState z1
+      _ -> state (empty,)
+    )
   return :: a -> ParserState k s a
   return = pure
 
@@ -141,7 +147,10 @@ instance Alternative (ParserState k s) where
   empty :: ParserState k s a
   empty = ParserState $ state (empty, )
   (<|>) :: ParserState k s a -> ParserState k s a -> ParserState k s a
-  (<|>) x y = ParserState $ state (evalParserState x <|> evalParserState y, )
+  (<|>) x y = ParserState $ do
+    xx <- runParserState x
+    yy <- runParserState y
+    return $ xx <|> yy
 
 instance MonadPlus (ParserState k s)
 
@@ -170,20 +179,22 @@ parse p s = evalCont (evalParserState (runStateT p s))
 parse1 :: Parser k s a -> s -> Cont (a, s)
 parse1 p s = evalParserState (runStateT p s)
 
-memo :: (Hashable k, Eq k, Hashable s, Eq s) => k -> Parser k s a -> Parser k s a
+memo :: (Hashable k, Eq k, Hashable s, Eq s, Typeable a, Typeable s) => k -> Parser k s a -> Parser k s a
 memo key p = StateT $ \s -> ParserState $
   do
     modify (Map.insertWith (\_ old -> old) key Map.empty)
     keyToParser <- get
+    keyToParser1 <- get
     let memoizedParser = keyToParser Map.! key
+    let memoizedParser1 = keyToParser1 Map.! key
     case Map.lookup s memoizedParser of
       Nothing -> do
         let !memoizedCont = memoCont $ evalParserState $ runStateT p s
         -- let memoizedCont = memoCont (evalParserState $ evalStateT p s)
-        modify (Map.adjust (Map.insert s memoizedCont) key)
+        modify (Map.adjust (Map.insert s (toDyn <$> memoizedCont)) key)
         return memoizedCont
-      Just memoizedCont -> return memoizedCont
-    
+      Just memoizedCont -> return $ flip fromDyn undefined <$> memoizedCont
+
     -- modify (Map.insertWith (\ _ old -> old) (Map.insert s (memoCont (evalParserState $ runStateT p s))) key)
     -- return $ (memoized Map.! key) Map.! s
     -- case memoParser of
@@ -201,7 +212,8 @@ memo key p = StateT $ \s -> ParserState $
 ccc :: Parser Int T.Text T.Text
 ccc = memo 2 ((ccc >>= \c -> T.append c <$> term "c") <|> term "a")
 
-accc = (term "c" >>= \c -> T.append c <$> term "c") <|> term "a" <|> term "a"
+accc :: Parser Int T.Text T.Text
+accc = memo 1 ((term "c" >>= \c -> T.append c <$> term "c") <|> term "a" <|> term "a")
 
 a :: [(T.Text, T.Text)]
 a = parse ccc $ T.pack "ccc"
