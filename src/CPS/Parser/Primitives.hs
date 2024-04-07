@@ -2,6 +2,7 @@ module CPS.Parser.Primitives
   ( sat,
     char,
     str,
+    regex,
     eof,
   )
 where
@@ -26,11 +27,21 @@ char :: (S.Stream s) => S.Token s -> Parser k s (S.Token s)
 char c = sat (== c)
 
 str :: (S.Stream s) => s -> Parser k s s
-str t =
+str s =
+  StateT
+    ( \state ->
+        case S.stripPrefix s state of
+          Just s' -> return (s, s')
+          Nothing -> empty
+    )
+
+-- | Parses according regular expression in perl-like style.
+regex :: (S.StreamRegex s) => String -> Parser k s s
+regex r =
   StateT
     ( \s ->
-        case S.stripPrefix t s of
-          Just x -> return (t, x)
+        case S.stripPrefixRegex r s of
+          Just (t, x) -> return (t, x)
           Nothing -> empty
     )
 

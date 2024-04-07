@@ -1,6 +1,7 @@
 module Main (main) where
 
-import MiscGrammarsSpec (miscGrammarsSpec)
+import CPS.Parser.PrimitivesSpec
+import MiscGrammarsSpec
 import Test.Tasty (defaultMain, testGroup)
 import Test.Tasty.Hspec (testSpecs)
 
@@ -10,7 +11,8 @@ main = do
     concat
       <$> mapM
         testSpecs
-        [ miscGrammarsSpec
+        [ miscGrammarsSpec,
+          primitivesSpec
         ]
   defaultMain
     ( testGroup

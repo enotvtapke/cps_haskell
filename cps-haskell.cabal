@@ -83,6 +83,7 @@ library
         text ^>=2.1.1,
         unordered-containers ^>=0.2.20,
         hashable ^>=1.4.4.0,
+        regex-tdfa ^>=1.3.2.2,
 
     -- Directories containing source files.
     hs-source-dirs:   src
@@ -126,6 +127,7 @@ test-suite cps-haskell-test
         Grammars.Misc,
         TestHelper,
         MiscGrammarsSpec,
+        CPS.Parser.PrimitivesSpec,
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
