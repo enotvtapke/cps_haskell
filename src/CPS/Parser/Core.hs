@@ -1,11 +1,9 @@
-{-# LANGUAGE DerivingVia #-}
-
-module Parser.Core
+module CPS.Parser.Core
   (
     Parser,
     memo,
-    basicParse,
-    sat
+    _parse,
+    _sat
   )
 where
 
@@ -14,7 +12,7 @@ import Control.Monad (MonadPlus, guard)
 import Control.Monad.State
     ( modify, evalState, MonadState(get), State, StateT(..) )
 import GHC.Base (Alternative (empty), join)
-import qualified Data.HashMap.Lazy as Map
+import Data.HashMap.Lazy qualified as Map
 import Data.Hashable ( Hashable )
 import Data.Dynamic ( toDyn, Typeable, fromDyn, Dynamic )
 
@@ -82,12 +80,12 @@ memo key p = StateT (\s ->
     addR r s oldMap = Map.insert key (Map.adjust (\e -> Entry (toDyn r : rs e) (ks e)) s (oldMap Map.! key)) oldMap
     addK k s oldMap = Map.insert key (Map.adjust (\e -> Entry (rs e) (kToDyn k : ks e)) s (oldMap Map.! key)) oldMap
 
-sat :: (s -> Bool) -> Parser k s ()
-sat f = do
+_sat :: (s -> Bool) -> Parser k s ()
+_sat f = do
   s <- get
   guard (f s)
 
-basicParse :: (Typeable s, Typeable t, Hashable s) => Parser k s t -> s -> [(t, s)]
-basicParse p s = evalState idContState Map.empty
+_parse :: (Typeable s, Typeable t, Hashable s) => Parser k s t -> s -> [(t, s)]
+_parse p s = evalState idContState Map.empty
   where
     idContState = run (runStateT p s) (\t -> return [t])

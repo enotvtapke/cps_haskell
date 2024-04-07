@@ -1,10 +1,11 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Main where
 
-import Parser.Core
+import CPS.Parser.Core ( _parse, Parser )
 import Data.Text qualified as T
-import Parser.Primitives (term)
+import CPS.Parser.Primitives (char)
 
 main :: IO ()
 main = do
   putStrLn "Hello, Haskell!"
-  print $ basicParse (term "a") $ T.pack "a"
+  print $ _parse (char 'a' :: Parser k T.Text Char) "a"
