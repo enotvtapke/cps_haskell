@@ -66,9 +66,9 @@ library
     import:           depends, warnings
 
     -- Modules exported by the library.
-    exposed-modules:  
-        MyLib, 
-        Parser.Parser
+    exposed-modules:
+        Parser.Core,
+        Parser.Primitives,
 
     -- Modules included in this library but not exported.
     -- other-modules:
@@ -80,7 +80,8 @@ library
     build-depends:
         mtl ^>=2.3.1,
         text ^>=2.1.1,
-        unordered-containers ^>=0.2.20
+        unordered-containers ^>=0.2.20,
+        hashable ^>=1.4.4.0,
 
     -- Directories containing source files.
     hs-source-dirs:   src
@@ -103,7 +104,8 @@ executable cps-haskell
 
     -- Other library packages from which modules are imported.
     build-depends:
-        cps-haskell
+        cps-haskell,
+        text ^>=2.1.1,
 
     -- Directories containing source files.
     hs-source-dirs:   app
@@ -119,7 +121,10 @@ test-suite cps-haskell-test
     default-language: GHC2021
 
     -- Modules included in this executable, other than Main.
-    other-modules: MyLibSpec
+    other-modules: 
+        Grammars.Misc,
+        TestHelper,
+        MiscGrammarsSpec,
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
@@ -136,6 +141,9 @@ test-suite cps-haskell-test
     -- Test dependencies.
     build-depends:
         cps-haskell,
+
         tasty ^>=1.5,
         tasty-hspec ^>=1.2.0.4,
-        hspec ^>=2.11.7
+        hspec ^>=2.11.7,
+
+        text ^>=2.1.1,

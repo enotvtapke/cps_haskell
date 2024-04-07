@@ -1,6 +1,6 @@
 module Main (main) where
 
-import MyLibSpec (myLibSpecs)
+import MiscGrammarsSpec (miscGrammarsSpec)
 import Test.Tasty (defaultMain, testGroup)
 import Test.Tasty.Hspec (testSpecs)
 
@@ -10,7 +10,7 @@ main = do
     concat
       <$> mapM
         testSpecs
-        [ myLibSpecs
+        [ miscGrammarsSpec
         ]
   defaultMain
     ( testGroup

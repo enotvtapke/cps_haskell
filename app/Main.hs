@@ -1,8 +1,10 @@
 module Main where
 
-import qualified MyLib (someFunc)
+import Parser.Core
+import Data.Text qualified as T
+import Parser.Primitives (term)
 
 main :: IO ()
 main = do
   putStrLn "Hello, Haskell!"
-  MyLib.someFunc
+  print $ basicParse (term "a") $ T.pack "a"
