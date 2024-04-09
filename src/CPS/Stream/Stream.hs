@@ -53,6 +53,8 @@ instance StreamRegex T.Text where
 instance StreamRegex String where
   stripPrefixRegex r s = (`splitAt` s) <$> match r s
 
+-- TODO memoize compiled regexes. While regexes are simple it is not a big deal, but in the future it may become a significt preformance issue. 
+-- I suggest to put compiled Regexes in the state of parser monad
 match :: (RegexLike Regex source) => String -> source -> Maybe Int
 match r s = snd . (! 0) <$> matchOnce (makeRegexOpts compOption execOption ("^" <> r)) s
   where
@@ -61,8 +63,8 @@ match r s = snd . (! 0) <$> matchOnce (makeRegexOpts compOption execOption ("^" 
     compOption =
       CompOption
         { caseSensitive = True,
-          multiline = True,
+          multiline = False,
           rightAssoc = True,
-          newSyntax = True,
+          newSyntax = False,
           lastStarGreedy = True
         }

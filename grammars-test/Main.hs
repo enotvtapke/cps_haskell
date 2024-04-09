@@ -1,8 +1,9 @@
 module Main (main) where
 
-import CPS.Parser.PrimitivesSpec
+import Grammars.MiscSpec
 import Test.Tasty (defaultMain, testGroup)
 import Test.Tasty.Hspec (testSpecs)
+import Grammars.Expr.ExprSpec (exprSpec)
 
 main :: IO ()
 main = do
@@ -10,11 +11,12 @@ main = do
     concat
       <$> mapM
         testSpecs
-        [ primitivesSpec
+        [ miscSpec,
+          exprSpec
         ]
   defaultMain
     ( testGroup
-        "Main Tests"
+        "Grammars Tests"
         [ testGroup "Specs" specs
         ]
     )

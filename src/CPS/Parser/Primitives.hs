@@ -1,9 +1,10 @@
 module CPS.Parser.Primitives
   ( sat,
-    char,
+    single,
     str,
     regex,
     eof,
+    oneOf,
   )
 where
 
@@ -23,8 +24,15 @@ sat f =
           Nothing -> empty
     )
 
-char :: (S.Stream s) => S.Token s -> Parser k s (S.Token s)
-char c = sat (== c)
+single :: (S.Stream s) => S.Token s -> Parser k s (S.Token s)
+single c = sat (== c)
+
+oneOf ::
+  (S.Stream s, Foldable f) =>
+  -- | Collection of matching tokens
+  f (S.Token s) ->
+  Parser k s (S.Token s)
+oneOf cs = sat (`elem` cs)
 
 str :: (S.Stream s) => s -> Parser k s s
 str s =

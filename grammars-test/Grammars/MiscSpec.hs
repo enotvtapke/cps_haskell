@@ -1,16 +1,17 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module MiscGrammarsSpec where
+module Grammars.MiscSpec where
 
 import CPS.Parser.Core (_parse)
-import Grammars.Misc (acc, accLongest, polynomial)
+import Grammars.Misc (acc, accLongest, polynomial, indirect)
 import Test.Hspec
 
-miscGrammarsSpec :: Spec
-miscGrammarsSpec = describe "MiscGrammars" $ do
+miscSpec :: Spec
+miscSpec = describe "Misc" $ do
   spec_acc
   spec_accLongest
   spec_polynomial
+  spec_indirect
 
 spec_acc :: Spec
 spec_acc =
@@ -47,3 +48,13 @@ spec_polynomial =
       _parse polynomial "bda" `shouldBe` []
     it "does not parse 'abccaccbabcdcbabccaacba'" $
       _parse polynomial "abccaccbabcdcbabccaacba" `shouldBe` []
+
+spec_indirect :: Spec
+spec_indirect =
+  describe "indirect" $ do
+    it "parses 'a'" $
+      _parse indirect "a" `shouldBe` [("a", "")]
+    it "parses 'abb'" $
+      _parse indirect "abb" `shouldBe` [("abb", ""), ("ab", "b"), ("a", "bb")]
+    it "does not parse 'bb'" $
+      _parse indirect "bb" `shouldBe` []

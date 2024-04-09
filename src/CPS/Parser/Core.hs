@@ -1,20 +1,25 @@
 module CPS.Parser.Core
-  (
-    Parser,
+  ( Parser,
     memo,
     _parse,
-    _sat
+    _sat,
   )
 where
 
 import Control.Applicative (Alternative ((<|>)))
 import Control.Monad (MonadPlus, guard)
 import Control.Monad.State
-    ( modify, evalState, MonadState(get), State, StateT(..) )
-import GHC.Base (Alternative (empty), join)
+  ( MonadState (get),
+    State,
+    StateT (..),
+    evalState,
+    modify,
+  )
+import Data.Dynamic (Dynamic (..), Typeable, fromDyn, toDyn)
 import Data.HashMap.Lazy qualified as Map
-import Data.Hashable ( Hashable )
-import Data.Dynamic ( toDyn, Typeable, fromDyn, Dynamic )
+import Data.Hashable (Hashable)
+import Data.Typeable (typeOf)
+import GHC.Base (Alternative (empty), join)
 
 type Table k s = Map.HashMap k (Map.HashMap s (Entry k s Dynamic))
 type ContState k s = State (Table k s)
@@ -48,7 +53,7 @@ instance Alternative (Cont k s) where
 
 instance MonadPlus (Cont k s) where
 
-memo :: (Typeable s, Typeable t, Hashable k, Hashable s) => k -> Parser k s t -> Parser k s t
+memo :: (Typeable s, Typeable t, Hashable k, Hashable s, Eq k, Eq s) => k -> Parser k s t -> Parser k s t
 memo key p = StateT (\s ->
     Cont (\k ->
         do
@@ -64,21 +69,23 @@ memo key p = StateT (\s ->
                     modify (addR r s)
                     table2 <- get
                     let conts = ks ((table2 Map.! key) Map.! s)
-                    join <$> mapM (\cont -> (\ds -> (`fromDyn` undefined) <$> ds) <$> cont (toDyn r)) conts
+                    join <$> mapM (\cont -> (fromDynOrError <$>) <$> cont (toDyn r)) conts
                 )
             _ -> do
               modify (addK k s)
               table2 <- get
               let results = rs ((table2 Map.! key) Map.! s)
-              join <$> mapM (\res -> k (fromDyn res undefined)) results
+              join <$> mapM (k . fromDynOrError) results
       )
   )
   where
     kToDyn :: (Typeable r, Typeable t) => (t -> ContState k s [r]) -> Dynamic -> ContState k s [Dynamic]
-    kToDyn k r = (toDyn <$>) <$> k (fromDyn r undefined)
+    kToDyn k r = (toDyn <$>) <$> k (fromDynOrError r)
     addNewEntry k s oldMap = Map.insert key (Map.insert s (Entry [] [kToDyn k]) (oldMap Map.! key)) oldMap
     addR r s oldMap = Map.insert key (Map.adjust (\e -> Entry (toDyn r : rs e) (ks e)) s (oldMap Map.! key)) oldMap
     addK k s oldMap = Map.insert key (Map.adjust (\e -> Entry (rs e) (kToDyn k : ks e)) s (oldMap Map.! key)) oldMap
+    fromDynOrError :: Typeable a => Dynamic -> a
+    fromDynOrError d = fromDyn d $ error ("Dynamic has invalid type.\nGot: " <> show (typeOf d))
 
 _sat :: (s -> Bool) -> Parser k s ()
 _sat f = do

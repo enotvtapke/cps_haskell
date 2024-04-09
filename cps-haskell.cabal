@@ -91,6 +91,34 @@ library
     -- Base language which the package is written in.
     default-language: GHC2021
 
+library grammars
+    -- Import common warning flags.
+    import:           depends, warnings
+
+    -- Modules exported by the library.
+    exposed-modules:
+        Grammars.Misc,
+        Grammars.Expr.Expr,
+        Grammars.Expr.ExprGenerator,
+
+    -- Modules included in this library but not exported.
+    -- other-modules:
+
+    -- LANGUAGE extensions used by modules in this package.
+    -- other-extensions:
+
+    -- Other library packages from which modules are imported.
+    build-depends:
+        cps-haskell,
+        text ^>=2.1.1,
+        random ^>=1.2.1.2,
+
+    -- Directories containing source files.
+    hs-source-dirs:   grammars
+
+    -- Base language which the package is written in.
+    default-language: GHC2021
+
 executable cps-haskell
     -- Import common warning flags.
     import:           depends, warnings
@@ -123,10 +151,7 @@ test-suite cps-haskell-test
     default-language: GHC2021
 
     -- Modules included in this executable, other than Main.
-    other-modules: 
-        Grammars.Misc,
-        TestHelper,
-        MiscGrammarsSpec,
+    other-modules:     
         CPS.Parser.PrimitivesSpec,
 
     -- LANGUAGE extensions used by modules in this package.
@@ -150,3 +175,40 @@ test-suite cps-haskell-test
         hspec ^>=2.11.7,
 
         text ^>=2.1.1,
+        random ^>=1.2.1.2,
+
+test-suite cps-haskell-grammars-test
+    -- Import common warning flags.
+    import:           depends, warnings
+
+    -- Base language which the package is written in.
+    default-language: GHC2021
+
+    -- Modules included in this executable, other than Main.
+    other-modules: 
+        Grammars.MiscSpec,
+        Grammars.Expr.ExprSpec,
+
+    -- LANGUAGE extensions used by modules in this package.
+    -- other-extensions:
+
+    -- The interface type and version of the test suite.
+    type:             exitcode-stdio-1.0
+
+    -- Directories containing source files.
+    hs-source-dirs:   grammars-test
+
+    -- The entrypoint to the test suite.
+    main-is:          Main.hs
+
+    -- Test dependencies.
+    build-depends:
+        cps-haskell,
+        cps-haskell:grammars,
+
+        tasty ^>=1.5,
+        tasty-hspec ^>=1.2.0.4,
+        hspec ^>=2.11.7,
+
+        text ^>=2.1.1,
+        random ^>=1.2.1.2,

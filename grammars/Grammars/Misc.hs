@@ -4,6 +4,7 @@ module Grammars.Misc
   ( acc,
     accLongest,
     polynomial,
+    indirect,
   )
 where
 
@@ -11,6 +12,12 @@ import CPS.Parser.Core (Parser, memo)
 import CPS.Parser.Primitives (eof, str)
 import Control.Applicative ((<|>))
 import Data.Text qualified as T
+
+indirect :: Parser Int T.Text T.Text
+indirect = memo 1 $ indirect' <|> str "a"
+  where
+    indirect' :: Parser Int T.Text T.Text
+    indirect' = memo 2 $ (<>) <$> indirect <*> str "b"
 
 accLongest :: Parser Int T.Text T.Text
 accLongest = do
