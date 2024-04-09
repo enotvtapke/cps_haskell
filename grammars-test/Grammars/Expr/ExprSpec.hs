@@ -3,12 +3,16 @@
 module Grammars.Expr.ExprSpec where
 
 import CPS.Parser.Core (_parse)
+import Data.Bifunctor (first)
+import Data.Text qualified as T
 import Grammars.Expr.Expr (Expr (..), F (..), Term (..), exprStart)
+import Grammars.Expr.ExprGenerator (genExpr)
 import Test.Hspec
 
 exprSpec :: Spec
 exprSpec = describe "Expr" $ do
   spec_exprStart
+  spec_exprStartRandom
 
 spec_exprStart :: Spec
 spec_exprStart =
@@ -27,3 +31,12 @@ spec_exprStart =
       _parse exprStart "+12" `shouldBe` []
     it "does not parse '2^10'" $
       _parse exprStart "2^10" `shouldBe` []
+
+spec_exprStartRandom :: Spec
+spec_exprStartRandom =
+  describe "exprStart on random Expr" $ do
+    it "parses random Expr with length 100" $
+      do
+        let generated = show $ genExpr 100
+        let actual = first show <$> _parse exprStart (T.pack generated)
+        actual `shouldBe` [(generated, "")]
