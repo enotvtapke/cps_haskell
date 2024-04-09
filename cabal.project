@@ -1,0 +1,2 @@
+packages: cps-haskell.cabal
+test-show-details: direct
