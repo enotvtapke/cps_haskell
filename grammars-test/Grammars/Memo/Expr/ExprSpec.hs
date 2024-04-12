@@ -1,12 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Grammars.Expr.ExprSpec where
+module Grammars.Memo.Expr.ExprSpec where
 
-import CPS.Parser.Core (_parse)
+import CPS.Parser.Memo (_parse)
 import Data.Bifunctor (first)
 import Data.Text qualified as T
-import Grammars.Expr.Expr (Expr (..), F (..), Term (..), exprStart)
-import Grammars.Expr.ExprGenerator (genExpr)
+import Grammars.Memo.Expr.Expr
+import Grammars.Memo.Expr.ExprGenerator (genExpr)
+import Grammars.Memo.Expr.ExprParser (exprStart)
 import Test.Hspec
 
 exprSpec :: Spec

@@ -6,6 +6,7 @@ module CPS.Stream.Stream
   )
 where
 
+import Data.Data (Typeable)
 import Data.Kind (Type)
 import Data.List qualified as L
 import Data.Text qualified as T
@@ -17,8 +18,9 @@ import Text.Regex.TDFA
     RegexLike (matchOnce),
     RegexMaker (makeRegexOpts),
   )
+import Data.Hashable (Hashable)
 
-class (Eq (Token s)) => Stream s where
+class (Eq s, Hashable s, Typeable s, Eq (Token s), Hashable (Token s), Typeable (Token s)) => Stream s where
   -- | Type of token in the stream.
   type Token s :: Type
 
@@ -53,7 +55,7 @@ instance StreamRegex T.Text where
 instance StreamRegex String where
   stripPrefixRegex r s = (`splitAt` s) <$> match r s
 
--- TODO memoize compiled regexes. While regexes are simple it is not a big deal, but in the future it may become a significt preformance issue. 
+-- TODO memoize compiled regexes. While regexes are simple it is not a big deal, but in the future it may become a significt preformance issue.
 -- I suggest to put compiled Regexes in the state of parser monad
 match :: (RegexLike Regex source) => String -> source -> Maybe Int
 match r s = snd . (! 0) <$> matchOnce (makeRegexOpts compOption execOption ("^" <> r)) s

@@ -1,16 +1,21 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module CPS.Parser.Memo where
+module CPS.Parser.Memo
+  ( Key (..),
+    makeStableKey,
+    makeRandomStableKey,
+    Parser (..),
+    memo,
+    memoWithKey,
+    _parse
+  )
+where
 
-import CPS.Parser.Core (Parser, memo, _parse)
-import CPS.Stream.Stream qualified as S
+import CPS.Parser.Base (BaseParser, baseMemo, baseParse)
 import Control.Applicative (Alternative)
-import Control.Monad.State (StateT (..))
 import Data.Data (Typeable)
-import Data.Hashable (Hashable (hash, hashWithSalt))
-import Data.Text qualified as T
+import Data.Hashable (Hashable (hashWithSalt))
 import Data.Typeable (cast)
-import Debug.Trace (trace)
 import GHC.Base (Alternative (..), MonadPlus)
 import GHC.IO (unsafePerformIO)
 import GHC.StableName (makeStableName)
@@ -34,65 +39,50 @@ makeStableKey a = Key (unsafePerformIO $ makeStableName a)
 makeRandomStableKey :: Key
 makeRandomStableKey = Key (unsafePerformIO $ makeStableName ())
 
-data ParserWithKey s t = ParserWithKey {parser :: Parser Key s t, key :: Key}
+data Parser s t = Parser {key :: Key, parser :: BaseParser Key s t}
 
-parserWithKey :: Parser Key s t -> ParserWithKey s t
-parserWithKey p = ParserWithKey p makeRandomStableKey
+parserWithRandomKey :: BaseParser Key s t -> Parser s t
+parserWithRandomKey = Parser makeRandomStableKey
 
-instance Functor (ParserWithKey s) where
-  fmap :: (a -> b) -> ParserWithKey s a -> ParserWithKey s b
-  fmap f p = parserWithKey (f <$> parser p)
+instance Functor (Parser s) where
+  fmap :: (a -> b) -> Parser s a -> Parser s b
+  fmap f p = parserWithRandomKey (f <$> parser p)
 
-instance Applicative (ParserWithKey s) where
-  pure :: a -> ParserWithKey s a
-  pure p = parserWithKey (pure p)
-  (<*>) :: ParserWithKey s (a -> b) -> ParserWithKey s a -> ParserWithKey s b
-  (<*>) f p = parserWithKey (parser f <*> parser p)
+instance Applicative (Parser s) where
+  pure :: a -> Parser s a
+  pure p = parserWithRandomKey (pure p)
+  (<*>) :: Parser s (a -> b) -> Parser s a -> Parser s b
+  (<*>) f p = parserWithRandomKey (parser f <*> parser p)
 
-instance Monad (ParserWithKey s) where
-  (>>=) :: ParserWithKey s a -> (a -> ParserWithKey s b) -> ParserWithKey s b
-  (>>=) p f = parserWithKey (parser p >>= (parser . f))
+instance Monad (Parser s) where
+  (>>=) :: Parser s a -> (a -> Parser s b) -> Parser s b
+  (>>=) p f = parserWithRandomKey (parser p >>= (parser . f))
 
-instance Alternative (ParserWithKey s) where
-  empty :: ParserWithKey s a
-  empty = parserWithKey empty
-  (<|>) :: ParserWithKey s a -> ParserWithKey s a -> ParserWithKey s a
-  (<|>) p1 p2 = parserWithKey (parser p1 <|> parser p2)
+instance Alternative (Parser s) where
+  empty :: Parser s a
+  empty = parserWithRandomKey empty
+  (<|>) :: Parser s a -> Parser s a -> Parser s a
+  (<|>) p1 p2 = parserWithRandomKey (parser p1 <|> parser p2)
 
-instance MonadPlus (ParserWithKey s)
+instance MonadPlus (Parser s)
 
-string :: (Typeable s, Hashable s, S.Stream s) => s -> ParserWithKey s s
-string s =
-  ParserWithKey
-    ( StateT
-        ( \state ->
-            case S.stripPrefix s state of
-              Just s' -> return (s, s')
-              Nothing -> empty
-        )
-    )
-    (Key s)
+_parse :: (Typeable s, Typeable t, Hashable s) => Parser s t -> s -> [(t, s)]
+_parse p = baseParse (parser p)
 
-parse :: (Typeable s, Typeable t, Hashable s) => ParserWithKey s t -> s -> [(t, s)]
-parse p = _parse (parser p)
-
-mapKey :: (Key -> Key) -> ParserWithKey s t -> ParserWithKey s t
-mapKey f p = ParserWithKey (parser p) (f $ key p)
-
-smartMemo :: (Typeable s, Typeable t, Hashable s, Eq s) => ParserWithKey s t -> ParserWithKey s t
-smartMemo p = ParserWithKey (memo k (parser p)) k
+memo :: (Typeable s, Typeable t, Hashable s, Eq s) => Parser s t -> Parser s t
+memo p = Parser k (baseMemo k (parser p))
   where
     k = makeStableKey p
 
-smartMemoWithKey :: (Typeable s, Typeable t, Hashable s, Eq s) => Key -> ParserWithKey s t -> ParserWithKey s t
-smartMemoWithKey k p = ParserWithKey (memo k (parser p)) k
+memoWithKey :: (Typeable s, Typeable t, Hashable s, Eq s) => Key -> Parser s t -> Parser s t
+memoWithKey k p = Parser k (baseMemo k (parser p))
 
--- Mutually recursive higher order 
-aSuf :: ParserWithKey T.Text T.Text -> ParserWithKey T.Text T.Text
-aSuf p = smartMemoWithKey (Key (let k = (makeStableKey aSuf, key p) in trace (("a" :: String) <> show (hash k)) k)) $ ((<>) <$> bSuf p <*> string "a") <|> p
+-- Mutually recursive higher order
+-- aSuf :: ParserWithKey T.Text T.Text -> ParserWithKey T.Text T.Text
+-- aSuf p = memoWithKey (Key (let k = (makeStableKey aSuf, key p) in trace (("a" :: String) <> show (hash k)) k)) $ ((<>) <$> bSuf p <*> chunk "a") <|> p
 
-bSuf :: ParserWithKey T.Text T.Text -> ParserWithKey T.Text T.Text
-bSuf p = smartMemoWithKey (Key (let k = (makeStableKey bSuf, key p) in trace (("b" :: String) <> show (hash k)) k)) $ (<>) <$> aSuf p <*> string "b"
+-- bSuf :: ParserWithKey T.Text T.Text -> ParserWithKey T.Text T.Text
+-- bSuf p = memoWithKey (Key (let k = (makeStableKey bSuf, key p) in trace (("b" :: String) <> show (hash k)) k)) $ (<>) <$> aSuf p <*> chunk "b"
 
-cSuf :: ParserWithKey T.Text T.Text
-cSuf = smartMemo $ aSuf (string "c")
+-- cSuf :: ParserWithKey T.Text T.Text
+-- cSuf = memo $ aSuf (chunk "c")

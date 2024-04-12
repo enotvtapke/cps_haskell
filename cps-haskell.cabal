@@ -43,7 +43,7 @@ common depends
 library
     import:           depends, warnings
     exposed-modules:
-        CPS.Parser.Core,
+        CPS.Parser.Base,
         CPS.Parser.Primitives,
         CPS.Parser.Memo,
         CPS.Stream.Stream,
@@ -66,9 +66,12 @@ library
 library grammars
     import:           depends, warnings
     exposed-modules:
-        Grammars.Misc,
-        Grammars.Expr.Expr,
-        Grammars.Expr.ExprGenerator,
+        Grammars.Base.Misc,
+        Grammars.Base.Expr.ExprParser,
+        Grammars.Memo.Misc,
+        Grammars.Memo.Expr.Expr,
+        Grammars.Memo.Expr.ExprParser,
+        Grammars.Memo.Expr.ExprGenerator,
 
     -- Modules included in this library but not exported.
     -- other-modules:
@@ -126,8 +129,10 @@ test-suite cps-haskell-grammars-test
     import:           depends, warnings
     default-language: GHC2021
     other-modules: 
-        Grammars.MiscSpec,
-        Grammars.Expr.ExprSpec,
+        Grammars.Base.MiscSpec,
+        Grammars.Base.Expr.ExprSpec,
+        Grammars.Memo.MiscSpec,
+        Grammars.Memo.Expr.ExprSpec,
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:

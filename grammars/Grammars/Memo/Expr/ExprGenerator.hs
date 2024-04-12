@@ -1,7 +1,7 @@
-module Grammars.Expr.ExprGenerator (genExpr) where
+module Grammars.Memo.Expr.ExprGenerator (genExpr) where
 
 import GHC.IO (unsafePerformIO)
-import Grammars.Expr.Expr
+import Grammars.Memo.Expr.Expr
 import System.Random (randomRIO)
 
 f :: Int -> IO F

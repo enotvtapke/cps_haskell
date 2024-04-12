@@ -1,8 +1,9 @@
-module CPS.Parser.Core
-  ( Parser,
-    memo,
-    _parse,
-    _sat,
+module CPS.Parser.Base
+  ( 
+    BaseParser,
+    baseMemo,
+    baseParse,
+    baseSat,
   )
 where
 
@@ -25,7 +26,7 @@ type Table k s = Map.HashMap k (Map.HashMap s (Entry k s Dynamic))
 type ContState k s = State (Table k s)
 data Entry k s t = Entry { rs :: [t], ks :: [t -> ContState k s [t]]}
 newtype Cont k s t = Cont { run :: forall r. (Typeable r) => (t -> ContState k s [r]) -> ContState k s [r] }
-type Parser k s = StateT s (Cont k s)
+type BaseParser k s = StateT s (Cont k s)
 
 instance Monad (Cont k s) where
   (>>=) :: Cont k s a -> (a -> Cont k s b) -> Cont k s b
@@ -53,8 +54,8 @@ instance Alternative (Cont k s) where
 
 instance MonadPlus (Cont k s) where
 
-memo :: (Typeable s, Typeable t, Hashable k, Hashable s, Eq k, Eq s) => k -> Parser k s t -> Parser k s t
-memo key p = StateT (\s ->
+baseMemo :: (Typeable s, Typeable t, Hashable k, Hashable s, Eq k, Eq s) => k -> BaseParser k s t -> BaseParser k s t
+baseMemo key p = StateT (\s ->
     Cont (\k ->
         do
           modify (Map.insertWith (\_ old -> old) key Map.empty)
@@ -87,12 +88,12 @@ memo key p = StateT (\s ->
     fromDynOrError :: Typeable a => Dynamic -> a
     fromDynOrError d = fromDyn d $ error ("Dynamic has invalid type.\nGot: " <> show (typeOf d))
 
-_sat :: (s -> Bool) -> Parser k s ()
-_sat f = do
+baseSat :: (s -> Bool) -> BaseParser k s ()
+baseSat f = do
   s <- get
   guard (f s)
 
-_parse :: (Typeable s, Typeable t, Hashable s) => Parser k s t -> s -> [(t, s)]
-_parse p s = evalState idContState Map.empty
+baseParse :: (Typeable s, Typeable t, Hashable s) => BaseParser k s t -> s -> [(t, s)]
+baseParse p s = evalState idContState Map.empty
   where
     idContState = run (runStateT p s) (\t -> return [t])

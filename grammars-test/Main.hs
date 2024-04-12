@@ -1,12 +1,21 @@
 module Main (main) where
 
-import Grammars.MiscSpec
+import Grammars.Base.Expr.ExprSpec (baseExprSpec)
+import Grammars.Base.MiscSpec (baseMiscSpec)
+import Grammars.Memo.Expr.ExprSpec (exprSpec)
+import Grammars.Memo.MiscSpec (miscSpec)
 import Test.Tasty (defaultMain, testGroup)
 import Test.Tasty.Hspec (testSpecs)
-import Grammars.Expr.ExprSpec (exprSpec)
 
 main :: IO ()
 main = do
+  baseSpecs <-
+    concat
+      <$> mapM
+        testSpecs
+        [ baseMiscSpec,
+          baseExprSpec
+        ]
   specs <-
     concat
       <$> mapM
@@ -17,6 +26,7 @@ main = do
   defaultMain
     ( testGroup
         "Grammars Tests"
-        [ testGroup "Specs" specs
+        [ testGroup "Base Specs" baseSpecs,
+          testGroup "Specs" specs
         ]
     )

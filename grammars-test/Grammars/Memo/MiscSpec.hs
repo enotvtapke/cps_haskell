@@ -1,9 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Grammars.MiscSpec where
+module Grammars.Memo.MiscSpec where
 
-import CPS.Parser.Core (_parse)
-import Grammars.Misc (acc, accLongest, polynomial, indirect)
+import CPS.Parser.Memo (_parse)
+import Grammars.Memo.Misc (acc, accLongest, indirect, polynomial)
 import Test.Hspec
 
 miscSpec :: Spec
