@@ -36,8 +36,8 @@ spec_exprStart =
 spec_exprStartRandom :: Spec
 spec_exprStartRandom =
   describe "exprStart on random Expr" $ do
-    it "parses random Expr with length 100" $
+    it "parses random Expr with length 1000" $
       do
-        let generated = show $ genExpr 100
+        let generated = show $ genExpr 1000
         let actual = first show <$> _parse exprStart (T.pack generated)
         actual `shouldBe` [(generated, "")]
