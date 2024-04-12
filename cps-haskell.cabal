@@ -45,6 +45,7 @@ library
     exposed-modules:
         CPS.Parser.Core,
         CPS.Parser.Primitives,
+        CPS.Parser.Memo,
         CPS.Stream.Stream,
 
     -- Modules included in this library but not exported.
