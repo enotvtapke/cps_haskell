@@ -3,7 +3,7 @@
 module Grammars.Memo.MiscSpec where
 
 import CPS.Parser.Memo (_parse)
-import Grammars.Memo.Misc (acc, accLongest, indirect, polynomial)
+import Grammars.Memo.Misc (acc, accLongest, higherOrder, indirect, polynomial)
 import Test.Hspec
 
 miscSpec :: Spec
@@ -12,6 +12,7 @@ miscSpec = describe "Misc" $ do
   spec_accLongest
   spec_polynomial
   spec_indirect
+  spec_higherOrder
 
 spec_acc :: Spec
 spec_acc =
@@ -58,3 +59,17 @@ spec_indirect =
       _parse indirect "abb" `shouldBe` [("abb", ""), ("ab", "b"), ("a", "bb")]
     it "does not parse 'bb'" $
       _parse indirect "bb" `shouldBe` []
+
+spec_higherOrder :: Spec
+spec_higherOrder =
+  describe "higherOrder" $ do
+    it "parses 'с'" $
+      _parse higherOrder "c" `shouldBe` [("c", "")]
+    it "parses 'cba'" $
+      _parse higherOrder "cba" `shouldBe` [("cba", ""), ("c", "ba")]
+    it "parses 'cbababa'" $
+      _parse higherOrder "cbababa" `shouldBe` [("cbababa", ""), ("cbaba", "ba"), ("cba", "baba"), ("c", "bababa")]
+    it "does not parse 'bababa'" $
+      _parse higherOrder "bababa" `shouldBe` []
+    it "does not parse 'сbadbaba'" $
+      _parse higherOrder "сbadbaba" `shouldBe` []

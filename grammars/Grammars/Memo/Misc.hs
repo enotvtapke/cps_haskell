@@ -5,10 +5,11 @@ module Grammars.Memo.Misc
     accLongest,
     polynomial,
     indirect,
+    higherOrder,
   )
 where
 
-import CPS.Parser.Memo (Parser, memo)
+import CPS.Parser.Memo (Key (..), Parser (..), makeStableKey, memo, memoWithKey)
 import CPS.Parser.Primitives (chunk, eof)
 import Control.Applicative ((<|>))
 import Data.Text qualified as T
@@ -49,3 +50,13 @@ polynomial =
         p <- polynomial
         r <- chunk "c"
         return $ l <> p <> r
+
+-- Mutually recursive higher order
+higherOrder :: Parser T.Text T.Text
+higherOrder = memo $ aSuf (chunk "c")
+  where
+    aSuf :: Parser T.Text T.Text -> Parser T.Text T.Text
+    aSuf p = memoWithKey (Key (makeStableKey aSuf, key p)) $ ((<>) <$> bSuf p <*> chunk "a") <|> p
+
+    bSuf :: Parser T.Text T.Text -> Parser T.Text T.Text
+    bSuf p = memoWithKey (Key (makeStableKey bSuf, key p)) $ (<>) <$> aSuf p <*> chunk "b"

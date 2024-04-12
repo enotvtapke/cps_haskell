@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module CPS.Parser.Memo
   ( Key (..),
     makeStableKey,
@@ -76,13 +74,3 @@ memo p = Parser k (baseMemo k (parser p))
 
 memoWithKey :: (Typeable s, Typeable t, Hashable s, Eq s) => Key -> Parser s t -> Parser s t
 memoWithKey k p = Parser k (baseMemo k (parser p))
-
--- Mutually recursive higher order
--- aSuf :: ParserWithKey T.Text T.Text -> ParserWithKey T.Text T.Text
--- aSuf p = memoWithKey (Key (let k = (makeStableKey aSuf, key p) in trace (("a" :: String) <> show (hash k)) k)) $ ((<>) <$> bSuf p <*> chunk "a") <|> p
-
--- bSuf :: ParserWithKey T.Text T.Text -> ParserWithKey T.Text T.Text
--- bSuf p = memoWithKey (Key (let k = (makeStableKey bSuf, key p) in trace (("b" :: String) <> show (hash k)) k)) $ (<>) <$> aSuf p <*> chunk "b"
-
--- cSuf :: ParserWithKey T.Text T.Text
--- cSuf = memo $ aSuf (chunk "c")
