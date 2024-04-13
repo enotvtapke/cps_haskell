@@ -1,5 +1,5 @@
+{-# OPTIONS_GHC -fno-cse -fno-full-laziness #-}
 
-{-# OPTIONS_GHC -fno-cse -fno-cmm-elim-common-blocks #-}
 module CPS.Parser.Memo
   ( Key (..),
     makeStableKey,
@@ -13,13 +13,13 @@ where
 
 import CPS.Parser.Base (BaseParser, baseMemo, baseParse)
 import Control.Applicative (Alternative (..))
+import Control.Monad (MonadPlus)
 import Data.Data (Typeable)
 import Data.Hashable (Hashable (hashWithSalt), hash)
 import Data.Typeable (cast)
-import System.Mem.StableName (makeStableName)
-import System.IO.Unsafe (unsafePerformIO)
-import Control.Monad (MonadPlus)
 import Data.Unique (newUnique)
+import System.IO.Unsafe (unsafePerformIO)
+import System.Mem.StableName (makeStableName)
 
 data Key = forall a. (Typeable a, Hashable a, Eq a) => Key a
 
@@ -38,11 +38,14 @@ instance Hashable Key where
   hashWithSalt :: Int -> Key -> Int
   hashWithSalt s (Key a) = hashWithSalt s a
 
+-- | For arguments with the same addresses this function returns the same Key. The opposite is incorrect: 
+-- for arguments with maybe (depending on optimization level) different addresses the same Key may be returned. 
 makeStableKey :: (Typeable a) => a -> Key
 makeStableKey a = Key (unsafePerformIO $ makeStableName a)
 
--- | In order to use this function use '{-# OPTIONS_GHC -fno-cse #-}' pragma. Otherwise repeated calls to this function will be merged into one and generated keys will not be unique
-{-# INLINE makeUniqueKey #-}
+-- | In order to use this function use '{-# OPTIONS_GHC -fno-cse -fno-full-laziness #-}' pragma. Otherwise repeated calls to this function will be merged into one and generated keys will not be unique.
+-- This function is disgustingly fragile and unsafe. Do not use it from outside. It is temporarily exported for test purposes.
+{-# NOINLINE makeUniqueKey #-}
 makeUniqueKey :: a -> Key
 makeUniqueKey _ = Key $ unsafePerformIO newUnique
 

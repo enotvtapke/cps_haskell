@@ -46,4 +46,10 @@ spec_single :: Spec
 spec_single =
   describe "single" $ do
     it "parsers for single have different keys" $
+      key (single 'a' :: Parser String Char) `shouldNotBe` key (single 'b' :: Parser String Char)
+    it "parsers for single have different keys even if arguments are the same" $
       key (single 'a' :: Parser String Char) `shouldNotBe` key (single 'a' :: Parser String Char)
+    it "single 'a' parses 'a'" $
+      _parse (single 'a' :: Parser String Char) "a" `shouldBe` [('a', "")]
+    it "single 'a' does not parse 'b'" $
+      _parse (single 'a' :: Parser String Char) "b" `shouldBe` []

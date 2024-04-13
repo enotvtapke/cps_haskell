@@ -44,7 +44,7 @@ instance Stream T.Text where
 
 instance Stream String where
   type Token String = Char
-  uncons = uncons
+  uncons = L.uncons
   take n t = if length t > n then Nothing else Just $ splitAt n t
   null = Prelude.null
   stripPrefix = L.stripPrefix

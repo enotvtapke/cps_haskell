@@ -1,5 +1,4 @@
 {-# LANGUAGE FunctionalDependencies #-}
-{-# OPTIONS_GHC -fno-cse -fno-cmm-elim-common-blocks #-}
 
 module CPS.Parser.Primitives
   ( single,
@@ -9,7 +8,7 @@ module CPS.Parser.Primitives
 where
 
 import CPS.Parser.Base (BaseParser, baseSat)
-import CPS.Parser.Memo (Key (Key), Parser (..), makeStableKey, makeUniqueKey)
+import CPS.Parser.Memo (Key (Key), Parser (..), makeStableKey)
 import CPS.Stream.Stream qualified as S
 import Control.Applicative (Alternative (empty))
 import Control.Monad (MonadPlus)
@@ -23,6 +22,7 @@ class (S.Stream s, MonadPlus m) => MonadParser s m | m -> s where
   chunk :: s -> m s
 
   -- TODO Make this function receive Regex type as an argument. In this case it will be necessary to add compileRegex function that compiles Regex with optimal parameteres
+
   -- | Parses according regular expression in perl-like style.
   regex :: (S.StreamRegex s) => String -> m s
 
@@ -62,15 +62,18 @@ newtype RegexKeyWrapper = RegexKeyWrapper String deriving (Eq, Hashable)
 -- | This wrapper ensures that keys for chunks will not collide with other keys
 newtype ChunkKeyWrapper s = ChunkKeyWrapper s deriving (Eq, Hashable)
 
+-- | This wrapper is a key for all eof parsers
+data EofWrapper = EofWrapper
+
 instance (S.Stream s) => MonadParser s (Parser s) where
   satisfy :: (S.Token s -> Bool) -> Parser s (S.Token s)
-  satisfy f = Parser (makeUniqueKey ()) (satisfy f)
+  satisfy f = Parser (makeStableKey f) (satisfy f)
   chunk :: s -> Parser s s
   chunk s = Parser (Key $ ChunkKeyWrapper s) (chunk s)
   regex :: (S.StreamRegex s) => String -> Parser s s
   regex r = Parser (Key $ RegexKeyWrapper r) (regex r)
   eof :: Parser s ()
-  eof = Parser (makeStableKey (eof :: Parser s ())) eof
+  eof = Parser (makeStableKey EofWrapper) eof
 
 single :: (S.Stream s, MonadParser s p) => S.Token s -> p (S.Token s)
 single c = satisfy (== c)

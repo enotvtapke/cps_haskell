@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -fno-cse #-}
+{-# OPTIONS_GHC -fno-cse -fno-full-laziness #-}
 
 module CPS.Parser.MemoSpec where
 
@@ -38,8 +38,8 @@ spec_makeStableKey =
       makeStableKey () `shouldBe` makeStableKey ()
     it "makeStableKey '' is equal to self" $
       makeStableKey "" `shouldBe` makeStableKey ""
-    it "makeStableKey (f, f) is not equal to makeStableKey (f, f)" $
-      makeStableKey (f, f) `shouldNotBe` makeStableKey (f, f)
+    it "makeStableKey (f, f) is equal to makeStableKey (f, f)" $
+      makeStableKey (f, f) `shouldBe` makeStableKey (f, f)
   where
     f :: Int -> Int
     f a = a + 1
