@@ -51,6 +51,7 @@ makeUniqueKey _ = Key $ unsafePerformIO newUnique
 
 data Parser s t = Parser {key :: Key, parser :: BaseParser Key s t}
 
+{-# INLINE parserWithRandomKey #-}
 parserWithRandomKey :: BaseParser Key s t -> Parser s t
 parserWithRandomKey = Parser $ makeUniqueKey ()
 
