@@ -1,24 +1,31 @@
+
+{-# OPTIONS_GHC -fno-cse -fno-cmm-elim-common-blocks #-}
 module CPS.Parser.Memo
   ( Key (..),
     makeStableKey,
-    makeRandomStableKey,
+    makeUniqueKey,
     Parser (..),
     memo,
     memoWithKey,
-    _parse
+    _parse,
   )
 where
 
 import CPS.Parser.Base (BaseParser, baseMemo, baseParse)
-import Control.Applicative (Alternative)
+import Control.Applicative (Alternative (..))
 import Data.Data (Typeable)
-import Data.Hashable (Hashable (hashWithSalt))
+import Data.Hashable (Hashable (hashWithSalt), hash)
 import Data.Typeable (cast)
-import GHC.Base (Alternative (..), MonadPlus)
-import GHC.IO (unsafePerformIO)
-import GHC.StableName (makeStableName)
+import System.Mem.StableName (makeStableName)
+import System.IO.Unsafe (unsafePerformIO)
+import Control.Monad (MonadPlus)
+import Data.Unique (newUnique)
 
 data Key = forall a. (Typeable a, Hashable a, Eq a) => Key a
+
+instance Show Key where
+  show :: Key -> String
+  show (Key a) = "Key@" <> show (hash a)
 
 instance Eq Key where
   (==) :: Key -> Key -> Bool
@@ -34,13 +41,15 @@ instance Hashable Key where
 makeStableKey :: (Typeable a) => a -> Key
 makeStableKey a = Key (unsafePerformIO $ makeStableName a)
 
-makeRandomStableKey :: Key
-makeRandomStableKey = Key (unsafePerformIO $ makeStableName ())
+-- | In order to use this function use '{-# OPTIONS_GHC -fno-cse #-}' pragma. Otherwise repeated calls to this function will be merged into one and generated keys will not be unique
+{-# INLINE makeUniqueKey #-}
+makeUniqueKey :: a -> Key
+makeUniqueKey _ = Key $ unsafePerformIO newUnique
 
 data Parser s t = Parser {key :: Key, parser :: BaseParser Key s t}
 
 parserWithRandomKey :: BaseParser Key s t -> Parser s t
-parserWithRandomKey = Parser makeRandomStableKey
+parserWithRandomKey = Parser $ makeUniqueKey ()
 
 instance Functor (Parser s) where
   fmap :: (a -> b) -> Parser s a -> Parser s b

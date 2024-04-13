@@ -3,6 +3,7 @@ module Main (main) where
 import CPS.Parser.PrimitivesSpec
 import Test.Tasty (defaultMain, testGroup)
 import Test.Tasty.Hspec (testSpecs)
+import CPS.Parser.MemoSpec (memoSpec)
 
 main :: IO ()
 main = do
@@ -10,7 +11,8 @@ main = do
     concat
       <$> mapM
         testSpecs
-        [ primitivesSpec
+        [ primitivesSpec,
+          memoSpec
         ]
   defaultMain
     ( testGroup

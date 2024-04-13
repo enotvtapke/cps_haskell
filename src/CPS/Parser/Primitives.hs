@@ -1,4 +1,5 @@
 {-# LANGUAGE FunctionalDependencies #-}
+{-# OPTIONS_GHC -fno-cse -fno-cmm-elim-common-blocks #-}
 
 module CPS.Parser.Primitives
   ( single,
@@ -8,7 +9,7 @@ module CPS.Parser.Primitives
 where
 
 import CPS.Parser.Base (BaseParser, baseSat)
-import CPS.Parser.Memo (Key (Key), Parser (..), makeRandomStableKey)
+import CPS.Parser.Memo (Key (Key), Parser (..), makeStableKey, makeUniqueKey)
 import CPS.Stream.Stream qualified as S
 import Control.Applicative (Alternative (empty))
 import Control.Monad (MonadPlus)
@@ -63,13 +64,13 @@ newtype ChunkKeyWrapper s = ChunkKeyWrapper s deriving (Eq, Hashable)
 
 instance (S.Stream s) => MonadParser s (Parser s) where
   satisfy :: (S.Token s -> Bool) -> Parser s (S.Token s)
-  satisfy f = Parser makeRandomStableKey (satisfy f)
+  satisfy f = Parser (makeUniqueKey ()) (satisfy f)
   chunk :: s -> Parser s s
   chunk s = Parser (Key $ ChunkKeyWrapper s) (chunk s)
   regex :: (S.StreamRegex s) => String -> Parser s s
   regex r = Parser (Key $ RegexKeyWrapper r) (regex r)
   eof :: Parser s ()
-  eof = Parser makeRandomStableKey eof
+  eof = Parser (makeStableKey (eof :: Parser s ())) eof
 
 single :: (S.Stream s, MonadParser s p) => S.Token s -> p (S.Token s)
 single c = satisfy (== c)
