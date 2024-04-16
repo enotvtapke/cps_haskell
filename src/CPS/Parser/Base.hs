@@ -1,6 +1,5 @@
 module CPS.Parser.Base
-  ( 
-    BaseParser,
+  ( BaseParser,
     baseMemo,
     baseParse,
     baseSat,
@@ -23,9 +22,13 @@ import Data.Typeable (typeOf)
 import GHC.Base (Alternative (empty), join)
 
 type Table k s = Map.HashMap k (Map.HashMap s (Entry k s Dynamic))
+
 type ContState k s = State (Table k s)
-data Entry k s t = Entry { rs :: [t], ks :: [t -> ContState k s [t]]}
-newtype Cont k s t = Cont { run :: forall r. (Typeable r) => (t -> ContState k s [r]) -> ContState k s [r] }
+
+data Entry k s t = Entry {rs :: [t], ks :: [t -> ContState k s [t]]}
+
+newtype Cont k s t = Cont {run :: forall r. (Typeable r) => (t -> ContState k s [r]) -> ContState k s [r]}
+
 type BaseParser k s = StateT s (Cont k s)
 
 instance Monad (Cont k s) where
@@ -46,13 +49,15 @@ instance Alternative (Cont k s) where
   empty :: Cont k s a
   empty = Cont (\_ -> return [])
   (<|>) :: Cont k s a -> Cont k s a -> Cont k s a
-  (<|>) a b = Cont (\k -> do
-      r1 <- run a k
-      r2 <- run b k
-      return $ r1 <|> r2
-    )
+  (<|>) a b =
+    Cont
+      ( \k -> do
+          r1 <- run a k
+          r2 <- run b k
+          return $ r1 <|> r2
+      )
 
-instance MonadPlus (Cont k s) where
+instance MonadPlus (Cont k s)
 
 baseMemo :: (Typeable s, Typeable t, Hashable k, Hashable s, Eq k, Eq s) => k -> BaseParser k s t -> BaseParser k s t
 baseMemo key p = StateT (\s ->

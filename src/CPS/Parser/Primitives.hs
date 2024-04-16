@@ -9,6 +9,7 @@ where
 
 import CPS.Parser.Base (BaseParser, baseSat)
 import CPS.Parser.Memo (Key (Key), Parser (..), makeStableKey)
+import CPS.Stream.Regex (StreamRegex (..))
 import CPS.Stream.Stream qualified as S
 import Control.Applicative (Alternative (empty))
 import Control.Monad (MonadPlus)
@@ -19,12 +20,12 @@ import Data.Hashable (Hashable)
 
 class (S.Stream s, MonadPlus m) => MonadParser s m | m -> s where
   satisfy :: (S.Token s -> Bool) -> m (S.Token s)
-  chunk :: s -> m s
+  chunk :: S.Tokens s -> m (S.Tokens s)
 
   -- TODO Make this function receive Regex type as an argument. In this case it will be necessary to add compileRegex function that compiles Regex with optimal parameteres
 
   -- | Parses according regular expression in perl-like style.
-  regex :: (S.StreamRegex s) => String -> m s
+  regex :: (StreamRegex s) => String -> m (S.Tokens s)
 
   eof :: m ()
 
@@ -37,7 +38,7 @@ instance (S.Stream s) => MonadParser s (BaseParser k s) where
             Just (c, s') -> if f c then return (c, s') else empty
             Nothing -> empty
       )
-  chunk :: s -> BaseParser k s s
+  chunk :: S.Tokens s -> BaseParser k s (S.Tokens s)
   chunk s =
     StateT
       ( \state ->
@@ -45,11 +46,11 @@ instance (S.Stream s) => MonadParser s (BaseParser k s) where
             Just s' -> return (s, s')
             Nothing -> empty
       )
-  regex :: (S.StreamRegex s) => String -> BaseParser k s s
+  regex :: (StreamRegex s) => String -> BaseParser k s (S.Tokens s)
   regex r =
     StateT
       ( \s ->
-          case S.stripPrefixRegex r s of
+          case stripPrefixRegex r s of
             Just (t, x) -> return (t, x)
             Nothing -> empty
       )
@@ -68,16 +69,18 @@ data EofWrapper = EofWrapper
 instance (S.Stream s) => MonadParser s (Parser s) where
   satisfy :: (S.Token s -> Bool) -> Parser s (S.Token s)
   satisfy f = Parser (makeStableKey f) (satisfy f)
-  chunk :: s -> Parser s s
-  chunk s = Parser (Key $ ChunkKeyWrapper s) (chunk s)
-  regex :: (S.StreamRegex s) => String -> Parser s s
-  regex r = Parser (Key $ RegexKeyWrapper r) (regex r)
   eof :: Parser s ()
   eof = Parser (makeStableKey EofWrapper) eof
+  chunk :: S.Tokens s -> Parser s (S.Tokens s)
+  chunk s = Parser (Key $ ChunkKeyWrapper s) (chunk s)
+  regex :: (StreamRegex s) => String -> Parser s (S.Tokens s)
+  regex r = Parser (Key $ RegexKeyWrapper r) (regex r)
 
+{-# INLINE single #-}
 single :: (S.Stream s, MonadParser s p) => S.Token s -> p (S.Token s)
 single c = satisfy (== c)
 
+{-# INLINE oneOf #-}
 oneOf ::
   (S.Stream s, Foldable f, MonadParser s p) =>
   -- | Collection of matching tokens

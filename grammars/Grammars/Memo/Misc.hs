@@ -6,6 +6,7 @@ module Grammars.Memo.Misc
     polynomial,
     indirect,
     higherOrder,
+    cca,
   )
 where
 
@@ -13,6 +14,7 @@ import CPS.Parser.Memo (Key (..), Parser (..), makeStableKey, memo, memoWithKey)
 import CPS.Parser.Primitives (chunk, eof)
 import Control.Applicative ((<|>))
 import Data.Text qualified as T
+import CPS.Stream.Stream (ParserState)
 
 indirect :: Parser T.Text T.Text
 indirect = memo $ indirect' <|> chunk "a"
@@ -30,6 +32,13 @@ acc =
   memo $
     T.append <$> acc <*> chunk "c"
       <|> chunk "a"
+
+cca :: Parser (ParserState T.Text) T.Text
+cca =
+  memo $
+    chunk "c" >> cca
+      <|> do
+        chunk "a"
 
 polynomial :: Parser T.Text T.Text
 polynomial =

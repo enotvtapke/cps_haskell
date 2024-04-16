@@ -2,4 +2,8 @@ dist-newstyle
 .vscode/dist-cabal-repl
 .vscode/phoityne.log
 cabal.project.local
+cabal.project.local~
+cps-haskell-benchmark.prof
+cps-haskell-benchmark.hp
+benchmark/reports
 notes.txt

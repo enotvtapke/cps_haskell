@@ -28,9 +28,9 @@ spec_chunk :: Spec
 spec_chunk =
   describe "chunk" $ do
     it "parsers for the same chunks have identical keys" $
-      key (chunk "one") `shouldBe` key (chunk "one")
+      key (chunk "one" :: Parser String String) `shouldBe` key (chunk "one" :: Parser String String)
     it "parsers for different chunks have different keys" $
-      key (chunk "rice") `shouldNotBe` key (chunk "rome")
+      key (chunk "rice" :: Parser String String) `shouldNotBe` key (chunk "rome" :: Parser String String)
 
 spec_eof :: Spec
 spec_eof =

@@ -1,10 +1,14 @@
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
 module Grammars.Memo.Expr.Expr (Expr (..), Term (..), F (..)) where
+import Control.DeepSeq (NFData)
+import GHC.Generics (Generic)
 
-data Expr = ExprOp Expr String Term | ExprVal Term deriving (Eq)
+data Expr = ExprOp Expr String Term | ExprVal Term deriving (Eq, Generic, NFData)
 
-data Term = TermOp Term String F | TermVal F deriving (Eq)
+data Term = TermOp Term String F | TermVal F deriving (Eq, Generic, NFData)
 
-data F = FExpr Expr | FVal Int deriving (Eq)
+data F = FExpr Expr | FVal Int deriving (Eq, Generic, NFData)
 
 instance Show Expr where
   show :: Expr -> String
