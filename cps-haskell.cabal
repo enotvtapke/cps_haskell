@@ -78,6 +78,9 @@ library grammars
         Grammars.Memo.Expr.ExprNoLeftRecParser,
         Grammars.Memo.Expr.ExprFastParser,
         Grammars.Memo.Expr.ExprGenerator,
+        Grammars.Memo.Lama.Expr.Expr,
+        Grammars.Memo.Lama.Expr.ExprParser,
+        Grammars.Memo.Lama.Expr.ExprGenerator,
 
     -- Modules included in this library but not exported.
     -- other-modules:
@@ -146,6 +149,7 @@ test-suite cps-haskell-grammars-test
         Grammars.Memo.Expr.ExprSpec,
         Grammars.Memo.Expr.ExprFastSpec,
         Grammars.Memo.Expr.ExprNoLeftRecSpec,
+        Grammars.Memo.Lama.Expr.ExprSpec,
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
@@ -170,6 +174,7 @@ benchmark cps-haskell-benchmark
         Grammars.Memo.Expr.ExprFastBenchmark,
         Grammars.Memo.Expr.ExprNoLeftRecBenchmark,
         Grammars.Memo.MiscBenchmark,
+        Grammars.Memo.Lama.Expr.LamaBenchmark,
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:

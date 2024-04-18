@@ -77,12 +77,12 @@ instance (S.Stream s) => MonadParser s (Parser s) where
   regex r = Parser (Key $ RegexKeyWrapper r) (regex r)
 
 {-# INLINE single #-}
-single :: (S.Stream s, MonadParser s p) => S.Token s -> p (S.Token s)
+single :: (MonadParser s p) => S.Token s -> p (S.Token s)
 single c = satisfy (== c)
 
 {-# INLINE oneOf #-}
 oneOf ::
-  (S.Stream s, Foldable f, MonadParser s p) =>
+  (Foldable f, MonadParser s p) =>
   -- | Collection of matching tokens
   f (S.Token s) ->
   p (S.Token s)

@@ -4,7 +4,7 @@ module Grammars.Memo.Expr.ExprNoLeftRecBenchmark
 where
 
 import CPS.Parser.Memo (_parse)
-import CPS.Stream.Stream (parserState)
+import CPS.Stream.Stream (parserState, stream)
 import Criterion.Main
 import Data.Text qualified as T
 import Grammars.Memo.Expr.ExprGenerator (genExpr)
@@ -14,4 +14,4 @@ exprNoLeftRecBenchmark :: Benchmark
 exprNoLeftRecBenchmark =
   bgroup
     "ExprNoLeftRec"
-    [env (return (x, parserState $ T.pack $ show $ genExpr x)) (\ ~(size, expr) -> bench (show size) (nf (_parse exprStart) expr)) | x <- [1 .. 5000], x `mod` 500 == 0]
+    [env (return $ parserState $ T.pack $ show $ genExpr x) (\expr -> bench (show $ T.length $ stream expr) (nf (_parse exprStart) expr)) | x <- [1 .. 5000], x `mod` 500 == 0]
