@@ -3,7 +3,7 @@
 module Grammars.Base.Misc
   ( acc,
     accLongest,
-    polynomial,
+    palindrom,
     indirect,
   )
 where
@@ -30,22 +30,22 @@ acc =
     T.append <$> acc <*> chunk "c"
       <|> chunk "a"
 
-polynomial :: BaseParser Int T.Text T.Text
-polynomial =
+palindrom :: BaseParser Int T.Text T.Text
+palindrom =
   baseMemo 1 $
     chunk "d"
       <|> do
         l <- chunk "a"
-        p <- polynomial
+        p <- palindrom
         r <- chunk "a"
         return $ l <> p <> r
       <|> do
         l <- chunk "b"
-        p <- polynomial
+        p <- palindrom
         r <- chunk "b"
         return $ l <> p <> r
       <|> do
         l <- chunk "c"
-        p <- polynomial
+        p <- palindrom
         r <- chunk "c"
         return $ l <> p <> r

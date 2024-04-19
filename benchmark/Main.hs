@@ -14,9 +14,9 @@ main =
     [ bgroup
         "benchmark"
         [ 
-          -- exprFastBenchmark,
-          -- exprNoLeftRecBenchmark,
-          -- miscBenchmark,
+          exprFastBenchmark,
+          exprNoLeftRecBenchmark,
+          miscBenchmark,
           lamaBenchmark
         ]
     ]

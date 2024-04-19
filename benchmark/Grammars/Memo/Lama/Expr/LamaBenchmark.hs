@@ -14,4 +14,4 @@ lamaBenchmark :: Benchmark
 lamaBenchmark =
   bgroup
     "LamaExpr"
-    [env (return $ parserState $ T.pack $ genExpr x) (\expr -> bench (show $ T.length $ stream expr) (nf (_parse basicStart) expr)) | x <- [1 .. 15]]
+    [env (return $ parserState $ T.pack $ genExpr x) (\expr -> bench (show $ T.length $ stream expr) (nf (_parse basicStart) expr)) | x <- [5 .. 50], x `mod` 5 == 0]

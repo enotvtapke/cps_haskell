@@ -3,14 +3,14 @@
 module Grammars.Base.MiscSpec where
 
 import CPS.Parser.Base (baseParse)
-import Grammars.Base.Misc (acc, accLongest, indirect, polynomial)
+import Grammars.Base.Misc (acc, accLongest, indirect, palindrom)
 import Test.Hspec
 
 baseMiscSpec :: Spec
 baseMiscSpec = describe "Misc" $ do
   spec_acc
   spec_accLongest
-  spec_polynomial
+  spec_palindrom
   spec_indirect
 
 spec_acc :: Spec
@@ -33,21 +33,21 @@ spec_accLongest =
     it "does not parse 'cc'" $
       baseParse accLongest "cc" `shouldBe` []
 
-spec_polynomial :: Spec
-spec_polynomial =
-  describe "polynomial" $ do
+spec_palindrom :: Spec
+spec_palindrom =
+  describe "palindrom" $ do
     it "parses 'd'" $
-      baseParse polynomial "d" `shouldBe` [("d", "")]
+      baseParse palindrom "d" `shouldBe` [("d", "")]
     it "parses 'ada'" $
-      baseParse polynomial "ada" `shouldBe` [("ada", "")]
+      baseParse palindrom "ada" `shouldBe` [("ada", "")]
     it "parses 'abcdcba'" $
-      baseParse polynomial "abcdcba" `shouldBe` [("abcdcba", "")]
+      baseParse palindrom "abcdcba" `shouldBe` [("abcdcba", "")]
     it "parses 'abcaaccbabcdcbabccaacba'" $
-      baseParse polynomial "abcaaccbabcdcbabccaacba" `shouldBe` [("abcaaccbabcdcbabccaacba", "")]
+      baseParse palindrom "abcaaccbabcdcbabccaacba" `shouldBe` [("abcaaccbabcdcbabccaacba", "")]
     it "does not parse 'bda'" $
-      baseParse polynomial "bda" `shouldBe` []
+      baseParse palindrom "bda" `shouldBe` []
     it "does not parse 'abccaccbabcdcbabccaacba'" $
-      baseParse polynomial "abccaccbabcdcbabccaacba" `shouldBe` []
+      baseParse palindrom "abccaccbabcdcbabccaacba" `shouldBe` []
 
 spec_indirect :: Spec
 spec_indirect =

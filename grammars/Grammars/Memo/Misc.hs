@@ -3,18 +3,19 @@
 module Grammars.Memo.Misc
   ( acc,
     accLongest,
-    polynomial,
+    palindrom,
     indirect,
     higherOrder,
     cca,
+    exponentional,
   )
 where
 
 import CPS.Parser.Memo (Key (..), Parser (..), makeStableKey, memo, memoWithKey)
-import CPS.Parser.Primitives (chunk, eof)
+import CPS.Parser.Primitives (chunk, eof, single)
+import CPS.Stream.Stream (ParserState)
 import Control.Applicative ((<|>))
 import Data.Text qualified as T
-import CPS.Stream.Stream (ParserState)
 
 indirect :: Parser T.Text T.Text
 indirect = memo $ indirect' <|> chunk "a"
@@ -36,31 +37,32 @@ acc =
 cca :: Parser (ParserState T.Text) T.Text
 cca =
   memo $
-    chunk "c" >> cca
-      <|> do
-        chunk "a"
+    chunk "c"
+      >> cca
+        <|> do
+          chunk "a"
 
-polynomial :: Parser T.Text T.Text
-polynomial =
+palindrom :: Parser (ParserState T.Text) T.Text
+palindrom =
   memo $
     chunk "d"
       <|> do
         l <- chunk "a"
-        p <- polynomial
+        p <- palindrom
         r <- chunk "a"
         return $ l <> p <> r
       <|> do
         l <- chunk "b"
-        p <- polynomial
+        p <- palindrom
         r <- chunk "b"
         return $ l <> p <> r
       <|> do
         l <- chunk "c"
-        p <- polynomial
+        p <- palindrom
         r <- chunk "c"
         return $ l <> p <> r
 
--- Mutually recursive higher order
+-- | This parser uses mutually recursive higher order parsers
 higherOrder :: Parser T.Text T.Text
 higherOrder = memo $ aSuf (chunk "c")
   where
@@ -69,3 +71,18 @@ higherOrder = memo $ aSuf (chunk "c")
 
     bSuf :: Parser T.Text T.Text -> Parser T.Text T.Text
     bSuf p = memoWithKey (Key (makeStableKey bSuf, key p)) $ (<>) <$> aSuf p <*> chunk "b"
+
+-- | This parser has exponentional time complexity when unmemoized
+exponentional :: Parser (ParserState T.Text) T.Text
+exponentional = memo $
+  do
+    a <- single 'a'
+    aa <- exponentional
+    x <- single 'x'
+    return $ T.snoc (T.cons a aa) x
+    <|> do
+      a <- single 'a'
+      aa <- exponentional
+      x <- single 'y'
+      return $ T.snoc (T.cons a aa) x
+    <|> pure T.empty
