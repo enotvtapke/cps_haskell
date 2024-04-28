@@ -27,33 +27,33 @@ type ContState k s = State (Table k s)
 
 data Entry k s t = Entry {rs :: [t], ks :: [t -> ContState k s [t]]}
 
-newtype Cont k s t = Cont {run :: forall r. (Typeable r) => (t -> ContState k s [r]) -> ContState k s [r]}
+newtype Cont k s t = Cont {runCont :: forall r. (Typeable r) => (t -> ContState k s [r]) -> ContState k s [r]}
 
 type BaseParser k s = StateT s (Cont k s)
 
 instance Monad (Cont k s) where
   (>>=) :: Cont k s a -> (a -> Cont k s b) -> Cont k s b
-  (>>=) c f = Cont (\k -> run c (\r -> run (f r) k))
+  (>>=) c f = Cont (\k -> runCont c (\r -> runCont (f r) k))
 
 instance Functor (Cont k s) where
   fmap :: (a -> b) -> Cont k s a -> Cont k s b
-  fmap f m = Cont (\k -> run m (k . f))
+  fmap f m = Cont (\k -> runCont m (k . f))
 
 instance Applicative (Cont k s) where
   pure :: a -> Cont k s a
   pure t = Cont (\k -> k t)
   (<*>) :: Cont k s (a -> b) -> Cont k s a -> Cont k s b
-  (<*>) f m = Cont (\k -> run f (\r -> run (r <$> m) k))
+  (<*>) f m = Cont (\k -> runCont f (\r -> runCont (r <$> m) k))
 
 instance Alternative (Cont k s) where
   empty :: Cont k s a
-  empty = Cont (\_ -> return [])
+  empty = Cont (\_ -> return empty)
   (<|>) :: Cont k s a -> Cont k s a -> Cont k s a
   (<|>) a b =
     Cont
       ( \k -> do
-          r1 <- run a k
-          r2 <- run b k
+          r1 <- runCont a k
+          r2 <- runCont b k
           return $ r1 <|> r2
       )
 
@@ -69,7 +69,7 @@ baseMemo key p = StateT (\s ->
           case entry of
             Nothing -> do
               modify (addNewEntry k s)
-              run
+              runCont
                 (runStateT p s)
                 (\r -> do
                     modify (addR r s)
@@ -101,4 +101,4 @@ baseSat f = do
 baseParse :: (Typeable s, Typeable t, Hashable s) => BaseParser k s t -> s -> [(t, s)]
 baseParse p s = evalState idContState Map.empty
   where
-    idContState = run (runStateT p s) (\t -> return [t])
+    idContState = runCont (runStateT p s) (return . pure)
