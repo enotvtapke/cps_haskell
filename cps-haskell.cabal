@@ -182,6 +182,7 @@ benchmark cps-haskell-benchmark
     type:             exitcode-stdio-1.0
     hs-source-dirs:   benchmark
     main-is:          Main.hs
+    -- Profiling options
     ghc-options:
         -fprof-auto
         "-with-rtsopts=-p -s -hT -i0.1"

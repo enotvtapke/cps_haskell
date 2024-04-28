@@ -4,7 +4,7 @@ module Grammars.Memo.MiscSpec where
 
 import CPS.Parser.Memo (_parse)
 import CPS.Stream.Stream (ParserState (..), parserState)
-import Grammars.Memo.Misc (acc, accLongest, higherOrder, indirect, palindrom, exponentional)
+import Grammars.Memo.Misc (acc, accLongest, higherOrder, indirect, palindrom, exponentional, anbncn)
 import Test.Hspec
 import qualified Data.Text as T
 
@@ -16,6 +16,7 @@ miscSpec = describe "Misc" $ do
   spec_indirect
   spec_higherOrder
   spec_exponentional
+  spec_anbncn
 
 spec_acc :: Spec
 spec_acc =
@@ -91,3 +92,19 @@ spec_exponentional =
       _parse exponentional input `shouldBe` [("", input)]
   where
     genInput n = parserState (T.pack $ replicate (2 * n) 'a' <> concat (replicate n "xy"))
+
+spec_anbncn :: Spec
+spec_anbncn =
+  describe "anbncn" $ do
+    it "parses aabbcc" $
+      _parse anbncn (parserState "aabbcc") `shouldBe` [("aabbcc", ParserState "" (T.length "aabbcc"))]
+    it "parses a{100}b{100}c{100}" $ do
+      let input = genInput 100
+      _parse anbncn (parserState input) `shouldBe` [(input, ParserState "" (T.length input))]
+    it "does not parse aaaabbbcccc" $
+      _parse anbncn (parserState "aaaabbbcccc") `shouldBe` []
+    it "does not parse a{100}b{99}c{100}" $ do
+      let input = T.pack $ replicate 100 'a' <> replicate 99 'b' <> replicate 100 'c'
+      _parse anbncn (parserState input) `shouldBe` []
+  where 
+    genInput n = T.pack $ replicate n 'a' <> replicate n 'b' <> replicate n 'c'

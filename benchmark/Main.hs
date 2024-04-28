@@ -10,7 +10,7 @@ import Grammars.Memo.MiscBenchmark (miscBenchmark)
 main :: IO ()
 main =
   defaultMainWith
-    defaultConfig {timeLimit = 1 {- resamples = 2, -}, csvFile = Just "./benchmark/reports/report.csv"}
+    defaultConfig {{- timeLimit = 1, resamples = 2,  -}csvFile = Just "./benchmark/reports/report.csv"}
     [ bgroup
         "benchmark"
         [ 

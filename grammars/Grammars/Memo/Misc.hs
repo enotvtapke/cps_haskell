@@ -8,15 +8,18 @@ module Grammars.Memo.Misc
     higherOrder,
     cca,
     exponentional,
+    anbncn,
   )
 where
 
 import CPS.Parser.Memo (Key (..), Parser (..), makeStableKey, memo, memoWithKey)
 import CPS.Parser.Primitives (chunk, eof, single)
 import CPS.Stream.Stream (ParserState)
-import Control.Applicative ((<|>))
+import Control.Applicative (Alternative (some), (<|>))
+import Control.Monad (replicateM)
 import Data.Text qualified as T
 
+-- | This parser is for grammmar with indirect left recursion
 indirect :: Parser T.Text T.Text
 indirect = memo $ indirect' <|> chunk "a"
   where
@@ -74,15 +77,26 @@ higherOrder = memo $ aSuf (chunk "c")
 
 -- | This parser has exponentional time complexity when unmemoized
 exponentional :: Parser (ParserState T.Text) T.Text
-exponentional = memo $
-  do
-    a <- single 'a'
-    aa <- exponentional
-    x <- single 'x'
-    return $ T.snoc (T.cons a aa) x
-    <|> do
+exponentional =
+  memo $
+    do
       a <- single 'a'
       aa <- exponentional
-      x <- single 'y'
+      x <- single 'x'
       return $ T.snoc (T.cons a aa) x
-    <|> pure T.empty
+      <|> do
+        a <- single 'a'
+        aa <- exponentional
+        x <- single 'y'
+        return $ T.snoc (T.cons a aa) x
+      <|> pure T.empty
+
+-- | This parser parses non-context-free language
+anbncn :: Parser (ParserState T.Text) T.Text
+anbncn = memo $
+  do
+    a <- some (single 'a')
+    b <- replicateM (length a) (single 'b')
+    c <- replicateM (length a) (single 'c')
+    eof
+    return $ T.pack (a <> b <> c)
