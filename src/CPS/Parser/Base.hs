@@ -21,14 +21,15 @@ import Data.Hashable (Hashable)
 import Data.Typeable (typeOf)
 import GHC.Base (Alternative (empty), join)
 import Control.Monad.State.Lazy (gets)
+import Data.Bifunctor (Bifunctor(first))
 
-type Table k s = Map.HashMap k (Map.HashMap s (Entry k s Dynamic))
+type Table k s = Map.HashMap k (Map.HashMap s (Entry k s Dynamic Dynamic))
 
 type ContState k s = State (Table k s)
 
-data Entry k s t = Entry {rs :: [t], ks :: [t -> ContState k s [Dynamic]]}
+data Entry k s a r = Entry {rs :: [(a, s)], ks :: [(a, s) -> ContState k s [r]]}
 
-newtype Cont k s t = Cont {runCont :: forall r. (Typeable r) => (t -> ContState k s [r]) -> ContState k s [r]}
+newtype Cont k s a = Cont {runCont :: forall r. (Typeable r) => (a -> ContState k s [r]) -> ContState k s [r]}
 
 type BaseParser k s = StateT s (Cont k s)
 
@@ -60,7 +61,7 @@ instance Alternative (Cont k s) where
 
 instance MonadPlus (Cont k s)
 
-baseMemo :: (Typeable s, Typeable t, Hashable k, Hashable s, Eq k, Eq s) => k -> BaseParser k s t -> BaseParser k s t
+baseMemo :: (Typeable a, Hashable k, Hashable s, Eq k, Eq s) => k -> BaseParser k s a -> BaseParser k s a
 baseMemo key parser = StateT $ \state ->
   Cont $ \continuation ->
     do
@@ -68,23 +69,23 @@ baseMemo key parser = StateT $ \state ->
       entry <- gets (\table -> Map.lookup state $ table Map.! key)
       case entry of
         Nothing -> do
-          modify (addNewEntry (Entry [] [toDynamicContinuation continuation]) state)
+          modify (addNewEntry state (Entry [] [toDynamicContinuation continuation]))
           runCont
             (runStateT parser state)
             ( \result -> do
-                modify (addResult result state)
+                modify (addResult state result)
                 conts <- gets (\table -> ks $ (table Map.! key) Map.! state)
-                join <$> mapM (\cont -> fmap fromDynamicOrError <$> cont (toDyn result)) conts
+                join <$> mapM (\cont -> fmap fromDynamicOrError <$> cont (first toDyn result)) conts
             )
         Just foundEntry -> do
-          modify (addContinuation continuation state)
-          join <$> mapM (continuation . fromDynamicOrError) (rs foundEntry)
+          modify (addContinuation state continuation)
+          join <$> mapM (continuation . first fromDynamicOrError) (rs foundEntry)
   where
-    toDynamicContinuation :: (Typeable r, Typeable t) => (t -> ContState k s [r]) -> Dynamic -> ContState k s [Dynamic]
-    toDynamicContinuation cont x = (toDyn <$>) <$> cont (fromDynamicOrError x)
-    addNewEntry entry state table = Map.insert key (Map.insert state entry (table Map.! key)) table
-    addResult res state table = Map.insert key (Map.adjust (\e -> Entry (toDyn res : rs e) (ks e)) state (table Map.! key)) table
-    addContinuation cont state table = Map.insert key (Map.adjust (\e -> Entry (rs e) (toDynamicContinuation cont : ks e)) state (table Map.! key)) table
+    toDynamicContinuation :: (Typeable r, Typeable a) => ((a, s) -> ContState k s [r]) -> (Dynamic, s) -> ContState k s [Dynamic]
+    toDynamicContinuation cont x = fmap toDyn <$> cont (first fromDynamicOrError x)
+    addNewEntry state entry table = Map.insert key (Map.insert state entry (table Map.! key)) table
+    addResult state res table = Map.insert key (Map.adjust (\e -> Entry (first toDyn res : rs e) (ks e)) state (table Map.! key)) table
+    addContinuation state cont table = Map.insert key (Map.adjust (\e -> Entry (rs e) (toDynamicContinuation cont : ks e)) state (table Map.! key)) table
     fromDynamicOrError :: (Typeable a) => Dynamic -> a
     fromDynamicOrError dynamic = fromDyn dynamic $ error ("Dynamic has invalid type.\nGot: " <> show (typeOf dynamic))
 
