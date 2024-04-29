@@ -20,12 +20,13 @@ import Data.HashMap.Lazy qualified as Map
 import Data.Hashable (Hashable)
 import Data.Typeable (typeOf)
 import GHC.Base (Alternative (empty), join)
+import Control.Monad.State.Lazy (gets)
 
 type Table k s = Map.HashMap k (Map.HashMap s (Entry k s Dynamic))
 
 type ContState k s = State (Table k s)
 
-data Entry k s t = Entry {rs :: [t], ks :: [t -> ContState k s [t]]}
+data Entry k s t = Entry {rs :: [t], ks :: [t -> ContState k s [Dynamic]]}
 
 newtype Cont k s t = Cont {runCont :: forall r. (Typeable r) => (t -> ContState k s [r]) -> ContState k s [r]}
 
@@ -60,38 +61,63 @@ instance Alternative (Cont k s) where
 instance MonadPlus (Cont k s)
 
 baseMemo :: (Typeable s, Typeable t, Hashable k, Hashable s, Eq k, Eq s) => k -> BaseParser k s t -> BaseParser k s t
-baseMemo key p = StateT (\s ->
-    Cont (\k ->
-        do
-          modify (Map.insertWith (\_ old -> old) key Map.empty)
-          table <- get
-          let entry = Map.lookup s $ table Map.! key
-          case entry of
-            Nothing -> do
-              modify (addNewEntry k s)
-              runCont
-                (runStateT p s)
-                (\r -> do
-                    modify (addR r s)
-                    table2 <- get
-                    let conts = ks ((table2 Map.! key) Map.! s)
-                    join <$> mapM (\cont -> (fromDynOrError <$>) <$> cont (toDyn r)) conts
-                )
-            _ -> do
-              modify (addK k s)
-              table2 <- get
-              let results = rs ((table2 Map.! key) Map.! s)
-              join <$> mapM (k . fromDynOrError) results
-      )
-  )
+baseMemo key parser = StateT $ \state ->
+  Cont $ \continuation ->
+    do
+      modify (Map.insertWith (\_ old -> old) key Map.empty)
+      entry <- gets (\table -> Map.lookup state $ table Map.! key)
+      case entry of
+        Nothing -> do
+          modify (addNewEntry (Entry [] [toDynamicContinuation continuation]) state)
+          runCont
+            (runStateT parser state)
+            ( \result -> do
+                modify (addResult result state)
+                conts <- gets (\table -> ks $ (table Map.! key) Map.! state)
+                join <$> mapM (\cont -> fmap fromDynamicOrError <$> cont (toDyn result)) conts
+            )
+        Just foundEntry -> do
+          modify (addContinuation continuation state)
+          join <$> mapM (continuation . fromDynamicOrError) (rs foundEntry)
   where
-    kToDyn :: (Typeable r, Typeable t) => (t -> ContState k s [r]) -> Dynamic -> ContState k s [Dynamic]
-    kToDyn k r = (toDyn <$>) <$> k (fromDynOrError r)
-    addNewEntry k s oldMap = Map.insert key (Map.insert s (Entry [] [kToDyn k]) (oldMap Map.! key)) oldMap
-    addR r s oldMap = Map.insert key (Map.adjust (\e -> Entry (toDyn r : rs e) (ks e)) s (oldMap Map.! key)) oldMap
-    addK k s oldMap = Map.insert key (Map.adjust (\e -> Entry (rs e) (kToDyn k : ks e)) s (oldMap Map.! key)) oldMap
-    fromDynOrError :: Typeable a => Dynamic -> a
-    fromDynOrError d = fromDyn d $ error ("Dynamic has invalid type.\nGot: " <> show (typeOf d))
+    toDynamicContinuation :: (Typeable r, Typeable t) => (t -> ContState k s [r]) -> Dynamic -> ContState k s [Dynamic]
+    toDynamicContinuation cont x = (toDyn <$>) <$> cont (fromDynamicOrError x)
+    addNewEntry entry state table = Map.insert key (Map.insert state entry (table Map.! key)) table
+    addResult res state table = Map.insert key (Map.adjust (\e -> Entry (toDyn res : rs e) (ks e)) state (table Map.! key)) table
+    addContinuation cont state table = Map.insert key (Map.adjust (\e -> Entry (rs e) (toDynamicContinuation cont : ks e)) state (table Map.! key)) table
+    fromDynamicOrError :: (Typeable a) => Dynamic -> a
+    fromDynamicOrError dynamic = fromDyn dynamic $ error ("Dynamic has invalid type.\nGot: " <> show (typeOf dynamic))
+
+-- {-# NOINLINE kToDyn #-}
+-- {-# NOINLINE addNewEntry #-}
+-- {-# NOINLINE addR #-}
+-- {-# NOINLINE addK #-}
+-- {-# NOINLINE fromDynOrError #-}
+-- {-# SCC kToDyn #-}
+
+
+-- kToDyn :: (Typeable r, Typeable t) => (t -> ContState k s [r]) -> Dynamic -> ContState k s [Dynamic]
+-- {-# SCC kToDyn #-}
+-- kToDyn k r = (toDyn <$>) <$> {-# SCC kkkkId #-} k (fromDynOrError r)
+
+
+-- addR :: (Hashable k1, Hashable k2, Typeable a) => a -> k2 -> k1 -> Map.HashMap k1 (Map.HashMap k2 (Entry k3 s Dynamic)) -> Map.HashMap k1 (Map.HashMap k2 (Entry k3 s Dynamic))
+-- {-# SCC addR #-}
+-- addR r s key oldMap = Map.insert key (Map.adjust (\e -> Entry (toDyn r : rs e) (ks e)) s (oldMap Map.! key)) oldMap
+
+
+-- addNewEntry :: (Hashable k1, Hashable k2, Typeable r, Typeable t) => (t -> ContState k3 s [r]) -> k2 -> k1 -> Map.HashMap k1 (Map.HashMap k2 (Entry k3 s Dynamic)) -> Map.HashMap k1 (Map.HashMap k2 (Entry k3 s Dynamic))
+-- {-# SCC addNewEntry #-}
+-- addNewEntry k s key oldMap = Map.insert key (Map.insert s (Entry [] [kToDyn k]) (oldMap Map.! key)) oldMap
+
+
+-- addK :: (Hashable k1, Hashable k2, Typeable r, Typeable t) => (t -> ContState k3 s [r]) -> k2 -> k1 -> Map.HashMap k1 (Map.HashMap k2 (Entry k3 s Dynamic)) -> Map.HashMap k1 (Map.HashMap k2 (Entry k3 s Dynamic))
+-- {-# SCC addK #-}
+-- addK k s key oldMap = Map.insert key (Map.adjust (\e -> Entry (rs e) (kToDyn k : ks e)) s (oldMap Map.! key)) oldMap
+
+-- fromDynOrError :: Typeable a => Dynamic -> a
+-- {-# SCC fromDynOrError #-}
+-- fromDynOrError d = fromDyn d $ error ("Dynamic has invalid type.\nGot: " <> show (typeOf d))
 
 baseSat :: (s -> Bool) -> BaseParser k s ()
 baseSat f = do
