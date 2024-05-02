@@ -9,6 +9,7 @@ module Grammars.Memo.Misc
     cca,
     exponentional,
     anbncn,
+    count
   )
 where
 
@@ -16,7 +17,7 @@ import CPS.Parser.Memo (Key (..), Parser (..), makeStableKey, memo, memoWithKey)
 import CPS.Parser.Primitives (chunk, eof, single)
 import CPS.Stream.Stream (ParserState)
 import Control.Applicative (Alternative (some), (<|>))
-import Control.Monad (replicateM)
+import Control.Monad (replicateM, join)
 import Data.Text qualified as T
 
 -- | This parser is for grammmar with indirect left recursion
@@ -100,3 +101,6 @@ anbncn = memo $
     c <- replicateM (length a) (single 'c')
     eof
     return $ T.pack (a <> b <> c)
+
+count :: Parser String String -> Int -> Parser String String
+count p n = join <$> replicateM n p

@@ -19,7 +19,7 @@ import Data.Text qualified as T
 import GHC.Generics (Generic)
 import Prelude hiding (length, null)
 
-class (Typeable s, Eq (Token s), Typeable (Token s), Eq (Tokens s), Hashable (Tokens s), Typeable (Tokens s)) => Stream s where
+class (Eq (Token s), Typeable (Token s), Eq (Tokens s), Hashable (Tokens s), Typeable (Tokens s)) => Stream s where
   type Token s :: Type
 
   type Tokens s :: Type

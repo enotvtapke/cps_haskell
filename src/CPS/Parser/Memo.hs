@@ -32,7 +32,7 @@ instance Eq Key where
   (==) (Key a) (Key b) =
     case cast b of
       Just x -> a == x
-      _ -> False
+      Nothing -> False
 
 instance Hashable Key where
   hashWithSalt :: Int -> Key -> Int
@@ -49,7 +49,7 @@ makeStableKey a = Key (unsafePerformIO $ makeStableName a)
 makeUniqueKey :: a -> Key
 makeUniqueKey _ = Key $ unsafePerformIO newUnique
 
-data Parser s t = Parser {key :: Key, parser :: BaseParser Key s t}
+data Parser s a = Parser {key :: Key, parser :: BaseParser Key s a}
 
 {-# INLINE parserWithRandomKey #-}
 parserWithRandomKey :: BaseParser Key s t -> Parser s t
@@ -61,7 +61,7 @@ instance Functor (Parser s) where
 
 instance Applicative (Parser s) where
   pure :: a -> Parser s a
-  pure p = parserWithRandomKey (pure p)
+  pure x = parserWithRandomKey (pure x)
   (<*>) :: Parser s (a -> b) -> Parser s a -> Parser s b
   (<*>) f p = parserWithRandomKey (parser f <*> parser p)
 
@@ -70,6 +70,7 @@ instance Monad (Parser s) where
   (>>=) p f = parserWithRandomKey (parser p >>= (parser . f))
 
 instance Alternative (Parser s) where
+  -- TODO make it: Parser (makeStableKey (empty :: BaseParser Key s a)) empty to make all empty parsers keys equal
   empty :: Parser s a
   empty = parserWithRandomKey empty
   (<|>) :: Parser s a -> Parser s a -> Parser s a
@@ -77,13 +78,13 @@ instance Alternative (Parser s) where
 
 instance MonadPlus (Parser s)
 
-_parse :: (Typeable s, Typeable t, Hashable s) => Parser s t -> s -> [(t, s)]
+_parse :: (Typeable s, Typeable a, Hashable s) => Parser s a -> s -> [(a, s)]
 _parse p = baseParse (parser p)
 
-memo :: (Typeable s, Typeable t, Hashable s, Eq s) => Parser s t -> Parser s t
+memo :: (Typeable s, Typeable a, Hashable s, Eq s) => Parser s a -> Parser s a
 memo p = Parser k (baseMemo k (parser p))
   where
     k = makeStableKey p
 
-memoWithKey :: (Typeable s, Typeable t, Hashable s, Eq s) => Key -> Parser s t -> Parser s t
+memoWithKey :: (Typeable s, Typeable a, Hashable s, Eq s) => Key -> Parser s a -> Parser s a
 memoWithKey k p = Parser k (baseMemo k (parser p))

@@ -4,9 +4,10 @@ module Grammars.Memo.MiscSpec where
 
 import CPS.Parser.Memo (_parse)
 import CPS.Stream.Stream (ParserState (..), parserState)
-import Grammars.Memo.Misc (acc, accLongest, higherOrder, indirect, palindrom, exponentional, anbncn)
+import Grammars.Memo.Misc (acc, accLongest, higherOrder, indirect, palindrom, exponentional, anbncn, count)
 import Test.Hspec
 import qualified Data.Text as T
+import CPS.Parser.Primitives (MonadParser(chunk))
 
 miscSpec :: Spec
 miscSpec = describe "Misc" $ do
@@ -17,6 +18,7 @@ miscSpec = describe "Misc" $ do
   spec_higherOrder
   spec_exponentional
   spec_anbncn
+  spec_count
 
 spec_acc :: Spec
 spec_acc =
@@ -108,3 +110,14 @@ spec_anbncn =
       _parse anbncn (parserState input) `shouldBe` []
   where 
     genInput n = T.pack $ replicate n 'a' <> replicate n 'b' <> replicate n 'c'
+
+
+spec_count :: Spec
+spec_count =
+  describe "count" $ do
+    it "parses aaa" $
+      _parse (count (chunk "a") 3) "aaa" `shouldBe` [("aaa", "")]
+    it "parses aaaa" $
+      _parse (count (chunk "a") 3) "aaaa" `shouldBe` [("aaa", "a")]
+    it "does not parse aa" $
+      _parse (count (chunk "a") 3) "aa" `shouldBe` []
