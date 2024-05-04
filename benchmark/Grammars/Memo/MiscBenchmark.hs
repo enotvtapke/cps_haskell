@@ -19,4 +19,9 @@ ccaBenchmark :: Benchmark
 ccaBenchmark =
   bgroup
     "cca"
-    [env (return (n, parserState $ T.pack $ replicate n 'c' <> "a")) (\ ~(size, expr) -> bench (show size) (nf (_parse cca) expr)) | n <- [1 .. 30000], n `mod` 5000 == 0]
+    [ env
+        (return (n, parserState $ T.pack $ replicate n 'c' <> "a"))
+        (\ ~(size, expr) -> bench (show size) (nf (_parse cca) expr))
+      | n <- [1 .. 30000],
+        n `mod` 5000 == 0
+    ]

@@ -2,7 +2,8 @@ module Main where
 
 import Criterion.Main
 import Criterion.Types (Config (..))
-import Grammars.Memo.Expr.ExprFastBenchmark (exprFastBenchmark)
+import Grammars.Memo.Expr.ExprFastBenchmark (exprFastMemoBenchmark)
+import Grammars.Base.Expr.ExprFastBenchmark  (exprFastBaseBenchmark) 
 import Grammars.Memo.Expr.ExprNoLeftRecBenchmark (exprNoLeftRecBenchmark)
 import Grammars.Memo.Lama.Expr.LamaBenchmark (lamaBenchmark)
 import Grammars.Memo.MiscBenchmark (miscBenchmark)
@@ -14,9 +15,10 @@ main =
     [ bgroup
         "benchmark"
         [ 
-          exprFastBenchmark,
+          exprFastBaseBenchmark,
+          exprFastMemoBenchmark,
           exprNoLeftRecBenchmark,
           miscBenchmark,
-          lamaBenchmark
+          lamaBenchmark,
         ]
     ]

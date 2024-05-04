@@ -3,6 +3,7 @@ module CPS.Parser.Base
     baseMemo,
     baseParse,
     baseSat,
+    DeterministicAlternative(..),
   )
 where
 
@@ -60,17 +61,33 @@ instance Alternative (Cont k s) where
 
 instance MonadPlus (Cont k s)
 
+class Alternative f => DeterministicAlternative f where
+  (</>) :: f a -> f a -> f a
+
+instance DeterministicAlternative (Cont k s) where
+  (</>) :: Cont k s a -> Cont k s a -> Cont k s a
+  (</>) l r =
+    Cont
+      ( \k -> do
+          leftResults <- runCont l k
+          case leftResults of
+            [] -> runCont r k
+            _ -> return leftResults
+      )
+
+instance DeterministicAlternative (BaseParser k s) where
+  (</>) :: BaseParser k s a -> BaseParser k s a -> BaseParser k s a
+  StateT m </> StateT n = StateT $ \s -> m s </> n s
+
 baseMemo :: (Typeable a, Hashable k, Hashable s, Eq k, Eq s) => k -> BaseParser k s a -> BaseParser k s a
 baseMemo key parser = StateT $ \state ->
   Cont $ \continuation ->
     do
-      modify (Map.insertWith (\_ old -> old) key Map.empty)
+      modify $ Map.insertWith (\_ old -> old) key Map.empty
       entry <- gets $ \table -> Map.lookup state $ table Map.! key
       case entry of
         Nothing -> do
-          modify $
-            addNewEntry state $
-              MemoEntry [] [toDynamicContinuation continuation]
+          modify $ addNewEntry state $ MemoEntry [] [toDynamicContinuation continuation]
           runCont
             (runStateT parser state)
             ( \result -> do
@@ -80,10 +97,7 @@ baseMemo key parser = StateT $ \state ->
             )
         Just foundEntry -> do
           modify (addContinuation state continuation)
-          join
-            <$> mapM
-              (continuation . first fromDynamic)
-              (results foundEntry)
+          join <$> mapM (continuation . first fromDynamic) (results foundEntry)
   where
     toDynamicContinuation :: (Typeable r, Typeable a) => ((a, s) -> ContState k s [r]) -> (Dynamic, s) -> ContState k s [Dynamic]
     toDynamicContinuation cont x = fmap toDyn <$> cont (first fromDynamic x)
@@ -98,7 +112,7 @@ baseSat f = do
   s <- get
   guard (f s)
 
-baseParse :: (Typeable s, Typeable t, Hashable s) => BaseParser k s t -> s -> [(t, s)]
+baseParse :: (Typeable s, Typeable t) => BaseParser k s t -> s -> [(t, s)]
 baseParse p s = evalState idContState Map.empty
   where
     idContState = runCont (runStateT p s) (return . pure)

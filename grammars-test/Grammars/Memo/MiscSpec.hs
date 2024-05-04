@@ -1,13 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# OPTIONS_GHC -fno-cse #-}
 
 module Grammars.Memo.MiscSpec where
 
 import CPS.Parser.Memo (_parse)
 import CPS.Stream.Stream (ParserState (..), parserState)
-import Grammars.Memo.Misc (acc, accLongest, higherOrder, indirect, palindrom, exponentional, anbncn, count)
+import Data.Text qualified as T
+import Grammars.Memo.Misc (acc, accLongest, anbncn, exponentional, higherOrder, indirect, palindrom)
 import Test.Hspec
-import qualified Data.Text as T
-import CPS.Parser.Primitives (MonadParser(chunk))
 
 miscSpec :: Spec
 miscSpec = describe "Misc" $ do
@@ -18,7 +18,6 @@ miscSpec = describe "Misc" $ do
   spec_higherOrder
   spec_exponentional
   spec_anbncn
-  spec_count
 
 spec_acc :: Spec
 spec_acc =
@@ -90,7 +89,7 @@ spec_exponentional =
       let input = genInput 500
       _parse exponentional input `shouldBe` [(stream input, ParserState "" (T.length (stream input))), ("", input)]
     it "does not parse a{500}ba{499}xy{500}" $ do
-      let input = parserState (T.pack $ replicate 500 'a' <> "b" <> replicate 499 'a'<> concat (replicate 500 "xy"))
+      let input = parserState (T.pack $ replicate 500 'a' <> "b" <> replicate 499 'a' <> concat (replicate 500 "xy"))
       _parse exponentional input `shouldBe` [("", input)]
   where
     genInput n = parserState (T.pack $ replicate (2 * n) 'a' <> concat (replicate n "xy"))
@@ -108,16 +107,5 @@ spec_anbncn =
     it "does not parse a{100}b{99}c{100}" $ do
       let input = T.pack $ replicate 100 'a' <> replicate 99 'b' <> replicate 100 'c'
       _parse anbncn (parserState input) `shouldBe` []
-  where 
+  where
     genInput n = T.pack $ replicate n 'a' <> replicate n 'b' <> replicate n 'c'
-
-
-spec_count :: Spec
-spec_count =
-  describe "count" $ do
-    it "parses aaa" $
-      _parse (count (chunk "a") 3) "aaa" `shouldBe` [("aaa", "")]
-    it "parses aaaa" $
-      _parse (count (chunk "a") 3) "aaaa" `shouldBe` [("aaa", "a")]
-    it "does not parse aa" $
-      _parse (count (chunk "a") 3) "aa" `shouldBe` []

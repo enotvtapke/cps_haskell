@@ -19,7 +19,7 @@ import Data.Text qualified as T
 import GHC.Generics (Generic)
 import Prelude hiding (length, null)
 
-class (Eq (Token s), Typeable (Token s), Eq (Tokens s), Hashable (Tokens s), Typeable (Tokens s)) => Stream s where
+class (Eq (Token s), Typeable (Token s), Eq (Tokens s), Hashable (Tokens s), Hashable (Token s), Typeable (Tokens s), Typeable s) => Stream s where
   type Token s :: Type
 
   type Tokens s :: Type
@@ -32,6 +32,8 @@ class (Eq (Token s), Typeable (Token s), Eq (Tokens s), Hashable (Tokens s), Typ
 
   chunkLength :: Proxy s -> Tokens s -> Int
 
+  tokensToChunk :: Proxy s -> [Token s] -> Tokens s
+
 instance Stream T.Text where
   type Token T.Text = Char
   type Tokens T.Text = T.Text
@@ -43,6 +45,8 @@ instance Stream T.Text where
   stripPrefix = T.stripPrefix
   chunkLength :: Proxy s -> Tokens T.Text -> Int
   chunkLength _ = T.length
+  tokensToChunk :: Proxy T.Text -> [Token T.Text] -> Tokens T.Text
+  tokensToChunk _ = T.pack
 
 instance Stream String where
   type Token String = Char
@@ -55,6 +59,8 @@ instance Stream String where
   stripPrefix = L.stripPrefix
   chunkLength :: Proxy s -> Tokens String -> Int
   chunkLength _ = L.length
+  tokensToChunk :: Proxy String -> [Token String] -> Tokens String
+  tokensToChunk _ = id
 
 data ParserState s = ParserState {stream :: s, pos :: Int} deriving (Generic, Show, NFData)
 
@@ -72,6 +78,8 @@ instance (Stream s) => Stream (ParserState s) where
   null (ParserState stream _) = null stream
   chunkLength :: Proxy (ParserState s) -> Tokens (ParserState s) -> Int
   chunkLength = chunkLength
+  tokensToChunk :: Proxy (ParserState s) -> [Token (ParserState s)] -> Tokens (ParserState s)
+  tokensToChunk = tokensToChunk
 
 instance Eq (ParserState s) where
   (==) :: ParserState s -> ParserState s -> Bool

@@ -1,20 +1,20 @@
-module Grammars.Memo.Expr.ExprFastBenchmark
-  ( exprFastMemoBenchmark,
+module Grammars.Base.Expr.ExprFastBenchmark
+  ( exprFastBaseBenchmark,
   )
 where
 
-import CPS.Parser.Memo (_parse)
+import CPS.Parser.Base (baseParse)
 import CPS.Stream.Stream (parserState, stream)
 import Control.Monad (join)
 import Criterion.Main
 import Data.Text qualified as T
-import Grammars.Memo.Expr.ExprFastParser (exprStart)
+import Grammars.Base.Expr.ExprFastParser (exprStart)
 import Grammars.Memo.Expr.ExprGenerator (genExpr)
 
-exprFastMemoBenchmark :: Benchmark
-exprFastMemoBenchmark =
+exprFastBaseBenchmark :: Benchmark
+exprFastBaseBenchmark =
   bgroup
-    "ExprFastMemo"
+    "ExprFastBase"
     [linearBenchmark, randomBenchmark]
 
 linearBenchmark :: Benchmark
@@ -23,7 +23,7 @@ linearBenchmark =
     "linear"
     [ env
         (return $ parserState $ T.pack $ "1" <> join (replicate x "+1"))
-        (\expr -> bench (show $ T.length $ stream expr) (nf (_parse exprStart) expr))
+        (\expr -> bench (show $ T.length $ stream expr) (nf (baseParse exprStart) expr))
       | x <- [750 .. 7500],
         x `mod` 750 == 0
     ]
@@ -34,7 +34,7 @@ randomBenchmark =
     "random"
     [ env
         (return $ parserState $ T.pack $ show $ genExpr x)
-        (\expr -> bench (show $ T.length $ stream expr) (nf (_parse exprStart) expr))
+        (\expr -> bench (show $ T.length $ stream expr) (nf (baseParse exprStart) expr))
       | x <- [1 .. 20000],
         x `mod` 5000 == 0
     ]

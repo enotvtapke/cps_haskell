@@ -33,10 +33,7 @@ accLongest = do
   x <$ eof
 
 acc :: Parser T.Text T.Text
-acc =
-  memo $
-    T.append <$> acc <*> chunk "c"
-      <|> chunk "a"
+acc = memo $ T.append <$> acc <*> chunk "c" <|> chunk "a"
 
 cca :: Parser (ParserState T.Text) T.Text
 cca =

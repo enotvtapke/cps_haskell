@@ -72,6 +72,7 @@ library grammars
     exposed-modules:
         Grammars.Base.Misc,
         Grammars.Base.Expr.ExprParser,
+        Grammars.Base.Expr.ExprFastParser,
         Grammars.Memo.Misc,
         Grammars.Memo.Expr.Expr,
         Grammars.Memo.Expr.ExprParser,
@@ -171,6 +172,7 @@ benchmark cps-haskell-benchmark
     import:           depends, warnings
     default-language: GHC2021
     other-modules: 
+        Grammars.Base.Expr.ExprFastBenchmark,
         Grammars.Memo.Expr.ExprFastBenchmark,
         Grammars.Memo.Expr.ExprNoLeftRecBenchmark,
         Grammars.Memo.MiscBenchmark,
