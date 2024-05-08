@@ -9,6 +9,7 @@ import Grammars.Memo.Lama.Expr.ExprSpec qualified as Lama (exprSpec)
 import Grammars.Memo.MiscSpec (miscSpec)
 import Test.Tasty (defaultMain, testGroup)
 import Test.Tasty.Hspec (testSpecs)
+import Grammars.Memo.Expr.ExprShallowSpec (exprShallowSpec)
 
 main :: IO ()
 main = do
@@ -27,7 +28,8 @@ main = do
           exprSpec,
           exprFastSpec,
           exprNoLeftRecSpec,
-          Lama.exprSpec
+          Lama.exprSpec,
+          exprShallowSpec
         ]
   defaultMain
     ( testGroup

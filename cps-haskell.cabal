@@ -79,6 +79,7 @@ library grammars
         Grammars.Memo.Expr.ExprNoLeftRecParser,
         Grammars.Memo.Expr.ExprFastParser,
         Grammars.Memo.Expr.ExprGenerator,
+        Grammars.Memo.Expr.ExprShallowParser,
         Grammars.Memo.Lama.Expr.Expr,
         Grammars.Memo.Lama.Expr.ExprParser,
         Grammars.Memo.Lama.Expr.ExprGenerator,
@@ -96,6 +97,8 @@ library grammars
         random ^>=1.2.1.2,
         deepseq ^>=1.4.8.0,
         megaparsec ^>=9.6.1,
+        unordered-containers ^>=0.2.20,
+        mtl ^>=2.3.1,
 
     hs-source-dirs:   grammars
     default-language: GHC2021
@@ -152,6 +155,7 @@ test-suite cps-haskell-grammars-test
         Grammars.Memo.Expr.ExprSpec,
         Grammars.Memo.Expr.ExprFastSpec,
         Grammars.Memo.Expr.ExprNoLeftRecSpec,
+        Grammars.Memo.Expr.ExprShallowSpec,
         Grammars.Memo.Lama.Expr.ExprSpec,
 
     -- LANGUAGE extensions used by modules in this package.
