@@ -15,7 +15,10 @@ exprFastMemoBenchmark :: Benchmark
 exprFastMemoBenchmark =
   bgroup
     "ExprFastMemo"
-    [linearBenchmark, randomBenchmark]
+    [ 
+      linearBenchmark,
+      randomBenchmark
+    ]
 
 linearBenchmark :: Benchmark
 linearBenchmark =
@@ -35,6 +38,6 @@ randomBenchmark =
     [ env
         (return $ parserState $ T.pack $ show $ genExpr x)
         (\expr -> bench (show $ T.length $ stream expr) (nf (_parse exprStart) expr))
-      | x <- [1 .. 20000],
-        x `mod` 5000 == 0
+      | x <- [1 .. 66000],
+        x `mod` 660 == 0
     ]

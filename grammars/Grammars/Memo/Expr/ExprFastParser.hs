@@ -22,12 +22,12 @@ term :: Parser (ParserState T.Text) Term
 term =
   memo $
     TermVal <$> f
-      <|> TermOp <$> term <*> (return <$> oneOf ['*', '/']) <*> f
+      <|> TermOp <$> term <*> (pure <$> oneOf ['*', '/']) <*> f
 
 expr :: Parser (ParserState T.Text) Expr
 expr =
   memo $
-    ExprOp <$> expr <*> (return <$> oneOf ['+', '-']) <*> term
+    ExprOp <$> expr <*> (pure <$> oneOf ['+', '-']) <*> term
       <|> ExprVal <$> term
 
 exprStart :: Parser (ParserState T.Text) Expr

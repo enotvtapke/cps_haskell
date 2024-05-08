@@ -91,13 +91,12 @@ exponentional =
 
 -- | This parser parses non-context-free language
 anbncn :: Parser (ParserState T.Text) T.Text
-anbncn = memo $
-  do
-    a <- some (single 'a')
-    b <- replicateM (length a) (single 'b')
-    c <- replicateM (length a) (single 'c')
-    eof
-    return $ T.pack (a <> b <> c)
+anbncn = do
+  a <- some (single 'a')
+  b <- replicateM (length a) (single 'b')
+  c <- replicateM (length a) (single 'c')
+  eof
+  return $ T.pack (a <> b <> c)
 
 count :: Parser String String -> Int -> Parser String String
 count p n = join <$> replicateM n p

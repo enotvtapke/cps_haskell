@@ -61,6 +61,8 @@ instance Alternative (Cont k s) where
 
 instance MonadPlus (Cont k s)
 
+infixl 3 </>
+
 class Alternative f => DeterministicAlternative f where
   (</>) :: f a -> f a -> f a
 
@@ -87,25 +89,25 @@ baseMemo key parser = StateT $ \state ->
       entry <- gets $ \table -> Map.lookup state $ table Map.! key
       case entry of
         Nothing -> do
-          modify $ addNewEntry state $ MemoEntry [] [toDynamicContinuation continuation]
+          modify $ addNewEntry state $ MemoEntry [] [toDynContinuation continuation]
           runCont
             (runStateT parser state)
             ( \result -> do
                 modify (addResult state result)
                 conts <- gets $ \table -> continuations $ (table Map.! key) Map.! state
-                join <$> mapM (\cont -> fmap fromDynamic <$> cont (first toDyn result)) conts
+                join <$> mapM (\cont -> fmap fromDynUnsafe <$> cont (first toDyn result)) conts
             )
         Just foundEntry -> do
           modify (addContinuation state continuation)
-          join <$> mapM (continuation . first fromDynamic) (results foundEntry)
+          join <$> mapM (continuation . first fromDynUnsafe) (results foundEntry)
   where
-    toDynamicContinuation :: (Typeable r, Typeable a) => ((a, s) -> ContState k s [r]) -> (Dynamic, s) -> ContState k s [Dynamic]
-    toDynamicContinuation cont x = fmap toDyn <$> cont (first fromDynamic x)
+    toDynContinuation :: (Typeable r, Typeable a) => ((a, s) -> ContState k s [r]) -> (Dynamic, s) -> ContState k s [Dynamic]
+    toDynContinuation cont x = fmap toDyn <$> cont (first fromDynUnsafe x)
     addNewEntry state entry table = Map.insert key (Map.insert state entry (table Map.! key)) table
     addResult state res table = Map.insert key (Map.adjust (\e -> MemoEntry (first toDyn res : results e) (continuations e)) state (table Map.! key)) table
-    addContinuation state cont table = Map.insert key (Map.adjust (\e -> MemoEntry (results e) (toDynamicContinuation cont : continuations e)) state (table Map.! key)) table
-    fromDynamic :: (Typeable a) => Dynamic -> a
-    fromDynamic dynamic = fromDyn dynamic $ error ("Dynamic has invalid type.\nGot: " <> show (typeOf dynamic))
+    addContinuation state cont table = Map.insert key (Map.adjust (\e -> MemoEntry (results e) (toDynContinuation cont : continuations e)) state (table Map.! key)) table
+    fromDynUnsafe :: (Typeable a) => Dynamic -> a
+    fromDynUnsafe dynamic = fromDyn dynamic $ error ("Dynamic has invalid type.\nGot: " <> show (typeOf dynamic))
 
 baseSat :: (s -> Bool) -> BaseParser k s ()
 baseSat f = do
