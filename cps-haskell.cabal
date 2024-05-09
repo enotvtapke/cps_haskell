@@ -44,6 +44,7 @@ library
     import:           depends, warnings
     exposed-modules:
         CPS.Parser.Base,
+        CPS.Parser.NewBase,
         CPS.Parser.Primitives,
         CPS.Parser.Memo,
         CPS.Stream.Stream,
@@ -84,6 +85,7 @@ library grammars
         Grammars.Memo.Lama.Expr.ExprParser,
         Grammars.Memo.Lama.Expr.ExprGenerator,
         Grammars.Megaparsec.ExprNoLeftRecParser,
+        Grammars.Megaparsec.Interface,
 
     -- Modules included in this library but not exported.
     -- other-modules:
