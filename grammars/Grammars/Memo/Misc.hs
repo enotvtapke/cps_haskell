@@ -13,7 +13,7 @@ module Grammars.Memo.Misc
   )
 where
 
-import CPS.Parser.Memo (Key (..), Parser (..), makeStableKey, memo, memoWithKey)
+import CPS.Parser.Memo (Key (..), Parser (..), makeStableKey, memo, memoWithKey, getOrMakeKey)
 import CPS.Parser.Primitives (chunk, eof, single)
 import CPS.Stream.Stream (ParserState)
 import Control.Applicative (Alternative (some), (<|>))
@@ -68,10 +68,10 @@ higherOrder :: Parser T.Text T.Text
 higherOrder = memo $ aSuf (chunk "c")
   where
     aSuf :: Parser T.Text T.Text -> Parser T.Text T.Text
-    aSuf p = memoWithKey (Key (makeStableKey aSuf, key p)) $ ((<>) <$> bSuf p <*> chunk "a") <|> p
+    aSuf p = memoWithKey (Key (makeStableKey aSuf, getOrMakeKey p)) $ ((<>) <$> bSuf p <*> chunk "a") <|> p
 
     bSuf :: Parser T.Text T.Text -> Parser T.Text T.Text
-    bSuf p = memoWithKey (Key (makeStableKey bSuf, key p)) $ (<>) <$> aSuf p <*> chunk "b"
+    bSuf p = memoWithKey (Key (makeStableKey bSuf, getOrMakeKey p)) $ (<>) <$> aSuf p <*> chunk "b"
 
 -- | This parser has exponentional time complexity when unmemoized
 exponentional :: Parser (ParserState T.Text) T.Text
