@@ -1,14 +1,9 @@
-{-# LANGUAGE FunctionalDependencies #-}
-
-module CPS.Parser.NewBase
+module CPS.Parser.Base
   ( BaseParser,
-    baseParse,
+    baseMemo,
+    -- baseParse,
     baseSat,
     DeterministicAlternative(..),
-    Cont(..),
-    ContState,
-    MemoTable,
-    MemoEntry(..),
   )
 where
 
@@ -27,91 +22,83 @@ import Data.Dynamic (Dynamic (..), Typeable, fromDyn, toDyn)
 import Data.HashMap.Lazy qualified as Map
 import Data.Hashable (Hashable)
 import Data.Typeable (typeOf)
--- import Text.Megaparsec (ParsecT(un))
-import Text.Megaparsec.Internal (ParsecT(..))
 
-data MemoEntry k a r = MemoEntry {results :: [a], continuations :: [a -> ContState k [r]]}
+data MemoEntry m k a r = MemoEntry {results :: [a], continuations :: [a -> m r]}
 
-type MemoTable k = Map.HashMap k (MemoEntry k Dynamic Dynamic)
+type MemoTable m k = Map.HashMap k (MemoEntry m k Dynamic Dynamic)
 
-type ContState k = State (MemoTable k)
+newtype ContState k a = ContState { r :: StateT (MemoTable (ContState k) k) [] a } deriving (Monad, Alternative, MonadPlus)
 
-newtype Cont k a = Cont {runCont :: forall r. (Typeable r) => (a -> ContState k [r]) -> ContState k [r]}
+-- newtype Cont k a = Cont {runCont :: forall r. (Typeable r) => (a -> ContState k [r]) -> ContState k [r]}
+newtype ContT m a = ContT {runContT :: forall r. (Typeable r) => (a -> m r) -> m r}
 
-type BaseParser k s = StateT s (Cont k)
+type BaseParser k s = StateT s (ContT (ContState (k, s)))
 
-instance Monad (Cont k) where
-  (>>=) :: Cont k a -> (a -> Cont k b) -> Cont k b
-  (>>=) m f = Cont (\cont -> runCont m (\r -> runCont (f r) cont))
+instance Monad (ContT k) where
+  (>>=) :: ContT k a -> (a -> ContT k b) -> ContT k b
+  (>>=) m f = ContT (\cont -> runContT m (\r -> runContT (f r) cont))
 
-instance Functor (Cont k) where
-  fmap :: (a -> b) -> Cont k a -> Cont k b
-  fmap f m = Cont (\cont -> runCont m (cont . f))
+instance Functor (ContT k) where
+  fmap :: (a -> b) -> ContT k a -> ContT k b
+  fmap f m = ContT (\cont -> runContT m (cont . f))
 
-instance Applicative (Cont k) where
-  pure :: a -> Cont k a
-  pure a = Cont (\cont -> cont a)
-  (<*>) :: Cont k (a -> b) -> Cont k a -> Cont k b
-  (<*>) f m = Cont (\cont -> runCont f (\r -> runCont (r <$> m) cont))
+instance Applicative (ContT k) where
+  pure :: a -> ContT k a
+  pure a = ContT (\cont -> cont a)
+  (<*>) :: ContT k (a -> b) -> ContT k a -> ContT k b
+  (<*>) f m = ContT (\cont -> runContT f (\r -> runContT (r <$> m) cont))
 
-instance Alternative (Cont k) where
-  empty :: Cont k a
-  empty = Cont (\_ -> return empty)
-  (<|>) :: Cont k a -> Cont k a -> Cont k a
+instance Alternative m => Alternative (ContT m) where
+  empty :: ContT m a
+  empty = ContT (\_ -> empty)
+  (<|>) :: ContT m a -> ContT m a -> ContT m a
   (<|>) l r =
-    Cont
+    ContT
       ( \k -> do
-          leftResults <- runCont l k
-          rightResults <- runCont r k
-          return $ leftResults <|> rightResults
+          runContT l k <|> runContT r k
       )
 
-instance MonadPlus (Cont k)
+instance MonadPlus m => MonadPlus (ContT m)
 
 infixl 3 </>
 
 class Alternative f => DeterministicAlternative f where
   (</>) :: f a -> f a -> f a
 
-instance DeterministicAlternative (Cont k) where
-  (</>) :: Cont k a -> Cont k a -> Cont k a
+instance DeterministicAlternative m => DeterministicAlternative (ContT m) where
+  (</>) :: ContT m a -> ContT m a -> ContT m a
   (</>) l r =
-    Cont
-      ( \k -> do
-          leftResults <- runCont l k
-          case leftResults of
-            [] -> runCont r k
-            _ -> return leftResults
+    ContT
+      ( \k -> runContT l k </> runContT r k
       )
 
-instance DeterministicAlternative (BaseParser k s) where
-  (</>) :: BaseParser k s a -> BaseParser k s a -> BaseParser k s a
-  StateT m </> StateT n = StateT $ \s -> m s </> n s
+-- instance DeterministicAlternative (BaseParser k s) where
+--   (</>) :: BaseParser k s a -> BaseParser k s a -> BaseParser k s a
+--   StateT m </> StateT n = StateT $ \s -> m s </> n s
 
 class Memoizable m k where
   memo :: (Typeable a, Hashable k, Eq k) => k -> m a -> m a
 
-instance Memoizable (Cont k) k where
-  memo :: (Typeable a, Hashable k, Eq k) => k -> Cont k a -> Cont k a
+instance Memoizable (ContT m) k where
+  memo :: (Typeable a, Hashable k, Eq k) => k -> ContT m a -> ContT m a
   memo = memoCont
 
--- instance (Memoizable m k) => Memoizable (ParsecT e s m) k where
---   memo :: (Memoizable m k, Typeable a, Hashable k, Eq k) => k -> ParsecT e s m a -> ParsecT e s m a
---   memo key p = ParsecT $ \s cok cerr eok eerr ->
---     memo (key) $ unParser p s cok cerr eok eerr
---     -- unParser p s cok cerr eok eerr
---     -- where
---     --   memoCok x y z = memo (cok x y z)
+instance (Memoizable m (k, s), Typeable s, Hashable s, Eq s) => Memoizable (StateT s m) k where
+  memo :: (Typeable a, Hashable k, Eq k) => k -> StateT s m a -> StateT s m a
+  memo key parser = StateT $ \state -> memo (key, state) $ runStateT parser state
 
-memoCont :: (Typeable a, Hashable k, Eq k) => k -> Cont k a -> Cont k a
-memoCont key cont = Cont $ \continuation ->
+baseMemo :: (Typeable a, Hashable k, Typeable s, Hashable s, Eq k, Eq s) => k -> BaseParser k s a -> BaseParser k s a
+baseMemo = memo
+
+memoCont :: (Typeable a, Hashable k, Eq k, MonadState (MemoTable (ContState k) k) m) => k -> ContT m a -> ContT m a
+memoCont key cont = ContT $ \continuation ->
     do
       -- modify $ Map.insertWith (\_ old -> old) key Map.empty
       entry <- gets $ Map.lookup key
       case entry of
         Nothing -> do
           modify $ addNewEntry key $ MemoEntry [] [toDynContinuation continuation]
-          runCont
+          runContT
             cont
             ( \result -> do
                 modify (addResult key result)
@@ -122,15 +109,15 @@ memoCont key cont = Cont $ \continuation ->
           modify (addContinuation key continuation)
           join <$> mapM (continuation . fromDynUnsafe) (results foundEntry)
   where
-    toDynContinuation :: (Typeable r, Typeable a) => (a -> ContState k [r]) -> Dynamic -> ContState k [Dynamic]
-    toDynContinuation cont x = fmap toDyn <$> cont (fromDynUnsafe x)
-    addNewEntry :: Hashable k => k -> MemoEntry k Dynamic Dynamic -> MemoTable k -> MemoTable k
+    -- toDynContinuation :: (Typeable r, Typeable a) => (a -> m r) -> Dynamic -> m Dynamic
+    toDynContinuation cont x = toDyn <$> cont (fromDynUnsafe x)
+    -- addNewEntry :: Hashable k => k -> MemoEntry k Dynamic Dynamic -> MemoTable k -> MemoTable k
     addNewEntry = Map.insert
-    addResult :: (Hashable k, Typeable a) => k -> a -> MemoTable k -> MemoTable k
+    -- addResult :: (Hashable k, Typeable a) => k -> a -> MemoTable k -> MemoTable k
     addResult key res = Map.adjust (\e -> MemoEntry (toDyn res : results e) (continuations e)) key
-    addContinuation :: (Hashable k, Typeable a, Typeable r) => k -> (a -> ContState k [r]) -> MemoTable k -> MemoTable k
+    -- addContinuation :: (Hashable k, Typeable a, Typeable r) => k -> (a -> ContState k [r]) -> MemoTable k -> MemoTable k
     addContinuation key cont = Map.adjust (\e -> let c = MemoEntry (results e) (let b = toDynContinuation cont in b: continuations e) in c) key
-    fromDynUnsafe :: (Typeable a) => Dynamic -> a
+    -- fromDynUnsafe :: (Typeable a) => Dynamic -> a
     fromDynUnsafe dynamic = fromDyn dynamic $ error ("Dynamic has invalid type.\nGot: " <> show (typeOf dynamic))
 
 -- baseMemo :: (Typeable a, Hashable k, Hashable s, Eq k, Eq s) => k -> BaseParser k s a -> BaseParser k s a
@@ -166,7 +153,7 @@ baseSat f = do
   s <- get
   guard (f s)
 
-baseParse :: (Typeable s, Typeable t) => BaseParser k s t -> s -> [(t, s)]
-baseParse p s = evalState idContState Map.empty
-  where
-    idContState = runCont (runStateT p s) (return . pure)
+-- baseParse :: (Typeable s, Typeable t) => BaseParser k s t -> s -> [(t, s)]
+-- baseParse p s = evalState idContState Map.empty
+--   where
+--     idContState = runContT (runStateT p s) (return . pure)
