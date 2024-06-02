@@ -34,12 +34,12 @@ main =
     [ bgroup
         "benchmark"
         [ 
+          miscBenchmark,
           exprFastBaseBenchmark,
           exprFastMemoBenchmark,
           exprNoLeftRecBenchmark,
           exprNoLeftRecMegaparsecBenchmark,
-          lamaBenchmark,
-          miscBenchmark
+          lamaBenchmark
         ]
     ]
     >> reportMemoryUsage jsonFilePath

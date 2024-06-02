@@ -7,9 +7,10 @@ module Grammars.Memo.Misc
     indirect,
     higherOrder,
     cca,
-    exponentional,
+    exponential,
+    exponentialUnmemoized,
     anbncn,
-    count
+    count,
   )
 where
 
@@ -73,21 +74,35 @@ higherOrder = memo $ aSuf (chunk "c")
     bSuf :: Parser T.Text T.Text -> Parser T.Text T.Text
     bSuf p = memoWithKey (Key (makeStableKey bSuf, getOrMakeKey p)) $ (<>) <$> aSuf p <*> chunk "b"
 
--- | This parser has exponentional time complexity when unmemoized
-exponentional :: Parser (ParserState T.Text) T.Text
-exponentional =
+-- | This parser has exponential time complexity when unmemoized
+exponential :: Parser (ParserState T.Text) T.Text
+exponential =
   memo $
     do
       a <- single 'a'
-      aa <- exponentional
+      aa <- exponential
       x <- single 'x'
       return $ T.snoc (T.cons a aa) x
       <|> do
         a <- single 'a'
-        aa <- exponentional
+        aa <- exponential
         x <- single 'y'
         return $ T.snoc (T.cons a aa) x
       <|> pure T.empty
+
+exponentialUnmemoized :: Parser (ParserState T.Text) T.Text
+exponentialUnmemoized =
+  do
+    a <- single 'a'
+    aa <- exponentialUnmemoized
+    x <- single 'x'
+    return $ T.snoc (T.cons a aa) x
+    <|> do
+      a <- single 'a'
+      aa <- exponentialUnmemoized
+      x <- single 'y'
+      return $ T.snoc (T.cons a aa) x
+    <|> pure T.empty
 
 -- | This parser parses non-context-free language
 anbncn :: Parser (ParserState T.Text) T.Text

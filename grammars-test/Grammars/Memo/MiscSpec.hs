@@ -6,7 +6,7 @@ module Grammars.Memo.MiscSpec where
 import CPS.Parser.Memo (_parse)
 import CPS.Stream.Stream (ParserState (..), parserState)
 import Data.Text qualified as T
-import Grammars.Memo.Misc (acc, accLongest, anbncn, exponentional, higherOrder, indirect, palindrom)
+import Grammars.Memo.Misc (acc, accLongest, anbncn, exponential, exponentialUnmemoized, higherOrder, indirect, palindrom)
 import Test.Hspec
 
 miscSpec :: Spec
@@ -16,7 +16,8 @@ miscSpec = describe "Misc" $ do
   spec_palindrom
   spec_indirect
   spec_higherOrder
-  spec_exponentional
+  spec_exponential
+  spec_exponentialUnmemoized
   spec_anbncn
 
 spec_acc :: Spec
@@ -79,20 +80,30 @@ spec_higherOrder =
     it "does not parse 'сbadbaba'" $
       _parse higherOrder "сbadbaba" `shouldBe` []
 
-spec_exponentional :: Spec
-spec_exponentional =
-  describe "exponentional" $ do
+spec_exponential :: Spec
+spec_exponential =
+  describe "exponential" $ do
     it "parses aaxy" $ do
       let input = genInput 1
-      _parse exponentional input `shouldBe` [(stream input, ParserState "" (T.length (stream input))), ("", input)]
+      _parse exponential input `shouldBe` [(stream input, ParserState "" (T.length (stream input))), ("", input)]
     it "parses a{1000}xy{500}" $ do
       let input = genInput 500
-      _parse exponentional input `shouldBe` [(stream input, ParserState "" (T.length (stream input))), ("", input)]
+      _parse exponential input `shouldBe` [(stream input, ParserState "" (T.length (stream input))), ("", input)]
     it "does not parse a{500}ba{499}xy{500}" $ do
       let input = parserState (T.pack $ replicate 500 'a' <> "b" <> replicate 499 'a' <> concat (replicate 500 "xy"))
-      _parse exponentional input `shouldBe` [("", input)]
+      _parse exponential input `shouldBe` [("", input)]
   where
     genInput n = parserState (T.pack $ replicate (2 * n) 'a' <> concat (replicate n "xy"))
+
+spec_exponentialUnmemoized :: Spec
+spec_exponentialUnmemoized =
+  describe "exponentialUnmemoized" $ do
+    it "parses aaxy" $ do
+      let input = parserState "aaxy"
+      _parse exponentialUnmemoized input `shouldBe` [(stream input, ParserState "" (T.length (stream input))), ("", input)]
+    it "does not parse aabxy" $ do
+      let input = parserState "aabxy"
+      _parse exponentialUnmemoized input `shouldBe` [("", input)]
 
 spec_anbncn :: Spec
 spec_anbncn =
