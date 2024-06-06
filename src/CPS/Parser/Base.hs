@@ -17,21 +17,20 @@ import Control.Monad.State
     modify,
   )
 import Control.Monad.State.Lazy (gets)
-import Data.Bifunctor (Bifunctor (first))
 import Data.Dynamic (Dynamic (..), Typeable, fromDyn, toDyn)
 import Data.HashMap.Lazy qualified as Map
 import Data.Hashable (Hashable)
 import Data.Typeable (typeOf)
 
-data MemoEntry k s a r = MemoEntry {results :: [(a, s)], continuations :: [(a, s) -> ContState k s [r]]}
+data MemoEntry k a r = MemoEntry {results :: [a], continuations :: [a -> ContState k [r]]}
 
-type MemoTable k s = Map.HashMap k (Map.HashMap s (MemoEntry k s Dynamic Dynamic))
+type MemoTable k = Map.HashMap k (MemoEntry k Dynamic Dynamic)
 
-type ContState k s = State (MemoTable k s)
+type ContState k = State (MemoTable k)
 
 newtype Cont m a = Cont {runCont :: forall r. (Typeable r) => (a -> m [r]) -> m [r]}
 
-type BaseParser k s = StateT s (Cont (ContState k s))
+type BaseParser k s = StateT s (Cont (ContState (k, s)))
 
 instance Monad m => Monad (Cont m) where
   (>>=) :: Cont m a -> (a -> Cont m b) -> Cont m b
@@ -72,7 +71,7 @@ instance Monad m => DeterministicAlternative (Cont m) where
   (</>) l r =
     Cont
       ( \k -> do
-          leftResults <- runCont l k 
+          leftResults <- runCont l k
           case leftResults of
             [] -> runCont r k
             _ -> return leftResults
@@ -82,33 +81,35 @@ instance DeterministicAlternative (BaseParser k s) where
   (</>) :: BaseParser k s a -> BaseParser k s a -> BaseParser k s a
   StateT m </> StateT n = StateT $ \s -> m s </> n s
 
-baseMemo :: (Typeable a, Hashable k, Hashable s, Eq k, Eq s) => k -> BaseParser k s a -> BaseParser k s a
-baseMemo key parser = StateT $ \state ->
+memoCont :: (Typeable a, Hashable k, Eq k) => k -> Cont (ContState k) a -> Cont (ContState k) a
+memoCont key parser =
   Cont $ \continuation ->
     do
-      modify $ Map.insertWith (\_ old -> old) key Map.empty
-      entry <- gets $ \table -> Map.lookup state $ table Map.! key
+      entry <- gets $ \table -> Map.lookup key table
       case entry of
         Nothing -> do
-          modify $ addNewEntry state $ MemoEntry [] [toDynContinuation continuation]
+          modify $ addNewEntry $ MemoEntry [] [toDynContinuation continuation]
           runCont
-            (runStateT parser state)
+            parser
             ( \result -> do
-                modify (addResult state result)
-                conts <- gets $ \table -> continuations $ (table Map.! key) Map.! state
-                join <$> mapM (\cont -> fmap fromDynUnsafe <$> cont (first toDyn result)) conts
+                modify (addResult result)
+                conts <- gets $ \table -> continuations $ table Map.! key
+                join <$> mapM (\cont -> fmap fromDynUnsafe <$> cont (toDyn result)) conts
             )
         Just foundEntry -> do
-          modify (addContinuation state continuation)
-          join <$> mapM (continuation . first fromDynUnsafe) (results foundEntry)
+          modify (addContinuation continuation)
+          join <$> mapM (continuation . fromDynUnsafe) (results foundEntry)
   where
-    toDynContinuation :: (Typeable r, Typeable a) => ((a, s) -> ContState k s [r]) -> (Dynamic, s) -> ContState k s [Dynamic]
-    toDynContinuation cont x = fmap toDyn <$> cont (first fromDynUnsafe x)
-    addNewEntry state entry table = Map.insert key (Map.insert state entry (table Map.! key)) table
-    addResult state res table = Map.insert key (Map.adjust (\e -> MemoEntry (first toDyn res : results e) (continuations e)) state (table Map.! key)) table
-    addContinuation state cont table = Map.insert key (Map.adjust (\e -> MemoEntry (results e) (toDynContinuation cont : continuations e)) state (table Map.! key)) table
+    toDynContinuation :: (Typeable r, Typeable a) => (a -> ContState k [r]) -> Dynamic -> ContState k [Dynamic]
+    toDynContinuation cont x = fmap toDyn <$> cont (fromDynUnsafe x)
     fromDynUnsafe :: (Typeable a) => Dynamic -> a
     fromDynUnsafe dynamic = fromDyn dynamic $ error ("Dynamic has invalid type.\nGot: " <> show (typeOf dynamic))
+    addNewEntry = Map.insert key
+    addResult res = Map.adjust (\e -> MemoEntry (toDyn res : results e) (continuations e)) key
+    addContinuation cont = Map.adjust (\e -> MemoEntry (results e) (toDynContinuation cont : continuations e)) key
+
+baseMemo :: (Typeable a, Hashable k, Hashable s, Eq k, Eq s, Typeable s) => k -> BaseParser k s a -> BaseParser k s a
+baseMemo key parser = StateT $ \state -> memoCont (key, state) (runStateT parser state)
 
 baseSat :: (s -> Bool) -> BaseParser k s ()
 baseSat f = do
