@@ -29,49 +29,50 @@ type MemoTable k s = Map.HashMap k (Map.HashMap s (MemoEntry k s Dynamic Dynamic
 
 type ContState k s = State (MemoTable k s)
 
-newtype Cont k s a = Cont {runCont :: forall r. (Typeable r) => (a -> ContState k s [r]) -> ContState k s [r]}
+newtype Cont m a = Cont {runCont :: forall r. (Typeable r) => (a -> m [r]) -> m [r]}
 
-type BaseParser k s = StateT s (Cont k s)
+type BaseParser k s = StateT s (Cont (ContState k s))
 
-instance Monad (Cont k s) where
-  (>>=) :: Cont k s a -> (a -> Cont k s b) -> Cont k s b
+instance Monad m => Monad (Cont m) where
+  (>>=) :: Cont m a -> (a -> Cont m b) -> Cont m b
   (>>=) m f = Cont (\cont -> runCont m (\r -> runCont (f r) cont))
 
-instance Functor (Cont k s) where
-  fmap :: (a -> b) -> Cont k s a -> Cont k s b
+instance Functor m => Functor (Cont m) where
+  fmap :: (a -> b) -> Cont m a -> Cont m b
   fmap f m = Cont (\cont -> runCont m (cont . f))
 
-instance Applicative (Cont k s) where
-  pure :: a -> Cont k s a
+instance Applicative m => Applicative (Cont m) where
+  pure :: a -> Cont m a
   pure a = Cont (\cont -> cont a)
-  (<*>) :: Cont k s (a -> b) -> Cont k s a -> Cont k s b
+  (<*>) :: Cont m (a -> b) -> Cont m a -> Cont m b
   (<*>) f m = Cont (\cont -> runCont f (\r -> runCont (r <$> m) cont))
 
-instance Alternative (Cont k s) where
-  empty :: Cont k s a
+instance (Monad m) => Alternative (Cont m) where
+  empty :: Cont m a
   empty = Cont (\_ -> return empty)
-  (<|>) :: Cont k s a -> Cont k s a -> Cont k s a
+  (<|>) :: Cont m a -> Cont m a -> Cont m a
   (<|>) l r =
     Cont
-      ( \k -> do
+      ( \k ->
+        do
           leftResults <- runCont l k
           rightResults <- runCont r k
           return $ leftResults <|> rightResults
       )
 
-instance MonadPlus (Cont k s)
+instance (Monad m) => MonadPlus (Cont m)
 
 infixl 3 </>
 
 class Alternative f => DeterministicAlternative f where
   (</>) :: f a -> f a -> f a
 
-instance DeterministicAlternative (Cont k s) where
-  (</>) :: Cont k s a -> Cont k s a -> Cont k s a
+instance Monad m => DeterministicAlternative (Cont m) where
+  (</>) :: Cont m a -> Cont m a -> Cont m a
   (</>) l r =
     Cont
       ( \k -> do
-          leftResults <- runCont l k
+          leftResults <- runCont l k 
           case leftResults of
             [] -> runCont r k
             _ -> return leftResults
