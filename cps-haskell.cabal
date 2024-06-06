@@ -44,6 +44,7 @@ library
     import:           depends, warnings
     exposed-modules:
         CPS.Parser.Base,
+        CPS.Parser.BaseCont,
         CPS.Parser.Primitives,
         CPS.Parser.Memo,
         CPS.Stream.Stream,
@@ -63,6 +64,7 @@ library
         hashable ^>=1.4.4.0,
         regex-tdfa ^>=1.3.2.2,
         deepseq ^>=1.4.8.0,
+        megaparsec ^>=9.6.1,
 
     hs-source-dirs:   src
     default-language: GHC2021
