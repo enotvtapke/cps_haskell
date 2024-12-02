@@ -3,7 +3,7 @@
 Haskell parser combinator library that supports:
 * Parsing of left-recursive grammars
 * Monadic combinators
-* Parse of any unambigous context-free grammars in O(n^2) using memoization
+* Parse of any unambiguous context-free grammars in O(n^2) time complexity using memoization
 
 The work is based on paper "[Memoization of Top-down Parsing](https://arxiv.org/pdf/cmp-lg/9504016)".
 
