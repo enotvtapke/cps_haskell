@@ -1,3 +1,5 @@
+## Higher order parser combinators for left-recursive grammars
+
 Haskell parser combinator library that supports:
 * Parsing of left-recursive grammars
 * Monadic combinators
